@@ -901,8 +901,11 @@
             const badge = document.getElementById('shiftStatus');
             const statusText = document.getElementById('activityStatus');
 
-            const nfo = getCurrentNfo();
-            if (!nfo) return;
+            const nfo = nfoData.find(n => n.id === currentUser.id);
+            if (!nfo) {
+                alert("Current NFO not found in nfoData");
+                return;
+            }
             nfo.onShift = !nfo.onShift;
 
             if (nfo.onShift) {
@@ -929,9 +932,12 @@
             const workOrderId = document.getElementById('workOrderId').value;
             const activityType = document.getElementById('activityType').value;
 
-            const nfo = getCurrentNfo();
-            if (!nfo) return;
-            
+            const nfo = nfoData.find(n => n.id === currentUser.id);
+            if (!nfo) {
+                alert("Current NFO not found in nfoData");
+                return;
+            }
+
             if (!nfo.onShift) {
                 alert('Please start your shift first!');
                 return;
@@ -960,8 +966,11 @@
         }
 
         function clearActivity() {
-            const nfo = getCurrentNfo();
-            if (!nfo) return;
+            const nfo = nfoData.find(n => n.id === currentUser.id);
+            if (!nfo) {
+                alert("Current NFO not found in nfoData");
+                return;
+            }
             nfo.siteId = null;
             nfo.workOrderId = null;
             nfo.activity = null;

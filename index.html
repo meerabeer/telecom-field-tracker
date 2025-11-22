@@ -496,6 +496,15 @@
                 <div id="siteSearchResults" style="margin-top: 10px; font-size: 14px; color: var(--color-text-secondary);"></div>
             </div>
 
+            <div class="dispatch-panel" style="background: var(--card-bg); border: 1px solid #e5e7eb; border-radius: 16px; padding: 16px; margin: 16px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
+                <h3 style="margin-top: 0;">Dispatch</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+                    <input id="dispatchSiteId" type="text" placeholder="Enter Site ID" style="flex: 1 1 200px; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 12px; font-size: 14px;">
+                    <button class="btn btn-primary" onclick="runDispatchSearch()">Find Nearest NFOs</button>
+                </div>
+                <div id="dispatchResults" style="margin-top: 10px; font-size: 14px; color: var(--color-text-secondary);"></div>
+            </div>
+
             <div class="management-dashboard">
                 <div class="map-container">
                     <div class="map-controls">
@@ -531,6 +540,7 @@
         let nfoMarkers = [];
         let siteMarkers = [];
         let nfoRouteLines = [];
+        let nfoConnectionLines = [];
         let watchId = null;
         let currentMapFilter = 'all';
 
@@ -686,7 +696,7 @@
         }
 
         async function updateBusyNfoRouteInfo(nfo) {
-            if (!nfo || nfo.status !== 'busy' || !nfo.siteId) {
+            if (!nfo || !nfo.siteId) {
                 nfo && (nfo.routeInfo = null);
                 return;
             }
@@ -827,33 +837,11 @@
                         location: (row.lat != null && row.lng != null)
                             ? { lat: row.lat, lng: row.lng }
                             : null,
-                        routeInfo: previous?.routeInfo || null
+                        routeInfo: null
                     };
                 });
 
                 document.getElementById('totalNFOs').textContent = nfoData.length;
-
-                await Promise.all(nfoData.map(async nfo => {
-                    if (!(nfo.onShift && nfo.status === 'busy')) {
-                        nfo.routeInfo = null;
-                        return;
-                    }
-
-                    const previous = previousById.get(nfo.id);
-                    const sameCoords = previous?.location
-                        && hasValidLocation(previous.location)
-                        && hasValidLocation(nfo.location)
-                        && previous.location.lat === nfo.location.lat
-                        && previous.location.lng === nfo.location.lng;
-                    const sameSite = previous?.siteId === nfo.siteId;
-
-                    if (sameCoords && sameSite && previous?.routeInfo) {
-                        nfo.routeInfo = previous.routeInfo;
-                        return;
-                    }
-
-                    await updateBusyNfoRouteInfo(nfo);
-                }));
 
                 updateStats();
                 updateNFOList();
@@ -1047,9 +1035,6 @@
                             `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
 
                         nfo.location = { lat, lng };
-                        if (nfo.status === 'busy' && nfo.siteId) {
-                            await updateBusyNfoRouteInfo(nfo);
-                        }
                         persistNFOState();
                         refreshManagementViews();
                         await saveNfoStatusToSupabase(nfo);
@@ -1154,9 +1139,6 @@
             persistNFOState();
             refreshManagementViews();
             await saveNfoStatusToSupabase(nfo);
-            await updateBusyNfoRouteInfo(nfo);
-            persistNFOState();
-            refreshManagementViews();
 
             alert('Activity updated successfully!');
         }
@@ -1212,8 +1194,8 @@
 
             refreshNfoMarkers();
 
-            // Add site markers (sample - showing 200 for performance)
-            siteData.slice(0, 200).forEach(site => {
+            // Add site markers (show all sites)
+            siteData.forEach(site => {
                 const marker = L.marker([site.location.lat, site.location.lng], { icon: siteIcon })
                     .bindPopup(`
                         <strong>${site.name}</strong><br>
@@ -1234,6 +1216,8 @@
             nfoMarkers = [];
             nfoRouteLines.forEach(line => map.removeLayer(line));
             nfoRouteLines = [];
+            nfoConnectionLines.forEach(line => map.removeLayer(line));
+            nfoConnectionLines = [];
 
             nfoData.forEach(nfo => {
                 if (!hasValidLocation(nfo.location)) return;
@@ -1262,11 +1246,40 @@
                                 opacity: 0.6
                             }
                         }).addTo(map);
-                        nfoRouteLines.push(routeLayer);
-                    } catch (err) {
-                        console.error('Failed to render route for NFO', nfo.id, err);
-                    }
+                    nfoRouteLines.push(routeLayer);
+                } catch (err) {
+                    console.error('Failed to render route for NFO', nfo.id, err);
                 }
+            }
+        });
+
+            applyMapFilter();
+            refreshNfoConnections();
+        }
+
+        function refreshNfoConnections() {
+            if (!map) return;
+
+            nfoConnectionLines.forEach(line => map.removeLayer(line));
+            nfoConnectionLines = [];
+
+            nfoData.forEach(nfo => {
+                if (!nfo.siteId) return;
+                const site = getSiteById(nfo.siteId);
+                if (!site) return;
+
+                if (!hasValidLocation(nfo.location) || !hasValidLocation(site.location)) return;
+
+                const line = L.polyline(
+                    [
+                        [nfo.location.lat, nfo.location.lng],
+                        [site.location.lat, site.location.lng]
+                    ],
+                    { color: '#999', weight: 2, opacity: 0.7 }
+                );
+
+                line.addTo(map);
+                nfoConnectionLines.push(line);
             });
 
             applyMapFilter();
@@ -1350,6 +1363,9 @@
                             </div>
                             <div class="nfo-details">
                                 ${detailText}
+                                <div style="margin-top: 8px;">
+                                    <button class="eta-btn" data-nfo-id="${nfo.id}">Show Road ETA</button>
+                                </div>
                             </div>
                         </div>
                         <span style="font-size: 12px; color: var(--color-text-secondary);">
@@ -1358,6 +1374,30 @@
                     </div>
                 `;
             }).join('');
+
+            const etaButtons = container.querySelectorAll('.eta-btn');
+            etaButtons.forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const targetId = btn.getAttribute('data-nfo-id');
+                    const targetNfo = nfoData.find(n => n.id === targetId);
+                    if (!targetNfo) return;
+
+                    if (!targetNfo.siteId) {
+                        alert('No site assigned for this NFO.');
+                        return;
+                    }
+
+                    await updateBusyNfoRouteInfo(targetNfo);
+                    persistNFOState();
+                    refreshManagementViews();
+
+                    const marker = nfoMarkers.find(m => m.nfoData?.id === targetId);
+                    if (marker && map) {
+                        map.setView(marker.getLatLng(), map.getZoom() || 12);
+                        marker.openPopup?.();
+                    }
+                });
+            });
         }
 
         function updateStats() {
@@ -1457,6 +1497,22 @@
             return nearest;
         }
 
+        function getNearestNfos(site, filter, limit = 5) {
+            if (!site || !hasValidLocation(site.location) || site.isDefaultLocation) return [];
+
+            const candidates = nfoData.filter(nfo => {
+                if (!nfo.onShift || !hasValidLocation(nfo.location)) return false;
+                if (filter === 'busy only') return nfo.status === 'busy';
+                if (filter === 'free only') return nfo.status === 'free';
+                return true;
+            });
+
+            return candidates
+                .map(nfo => ({ nfo, distance: calculateDistance(nfo.location, site.location) }))
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, limit);
+        }
+
         function findNearestNfosForSite() {
             const siteIdInput = document.getElementById('searchSiteId');
             const statusSelect = document.getElementById('searchNfoStatus');
@@ -1483,17 +1539,7 @@
                 return;
             }
 
-            const candidates = nfoData.filter(nfo => {
-                if (!nfo.onShift || !hasValidLocation(nfo.location)) return false;
-                if (filter === 'busy only') return nfo.status === 'busy';
-                if (filter === 'free only') return nfo.status === 'free';
-                return true;
-            });
-
-            const ranked = candidates
-                .map(nfo => ({ nfo, distance: calculateDistance(nfo.location, site.location) }))
-                .sort((a, b) => a.distance - b.distance)
-                .slice(0, 3);
+            const ranked = getNearestNfos(site, filter, 5);
 
             if (!ranked.length) {
                 resultsEl.textContent = 'No on-shift NFOs with GPS for this filter.';
@@ -1503,12 +1549,12 @@
             const listItems = ranked.map((entry, index) => {
                 const statusLabel = entry.nfo.status === 'busy' ? 'Busy' : 'Free';
                 const currentSite = entry.nfo.siteId || 'none';
-                return `${index + 1}) ${entry.nfo.name} (${entry.nfo.id}) – ${entry.distance.toFixed(2)} km – status: ${statusLabel} – current site: ${currentSite}`;
-            }).join('<br>');
+                return `<li>${index + 1}) ${entry.nfo.name} (${entry.nfo.id}) – ${entry.distance.toFixed(2)} km – status: ${statusLabel} – current site: ${currentSite}</li>`;
+            }).join('');
 
             resultsEl.innerHTML = `
-                <strong>Nearest NFOs to ${site.id} (${site.name}):</strong><br>
-                ${listItems}
+                <strong>Nearest NFOs to ${site.id} (${site.name}):</strong>
+                <ul style="margin-top: 8px; padding-left: 20px;">${listItems}</ul>
             `;
 
             if (map && hasValidLocation(site.location)) {
@@ -1521,6 +1567,70 @@
                     nearestMarker.openPopup();
                 }
             }
+        }
+
+        function runDispatchSearch() {
+            const siteIdInput = document.getElementById('dispatchSiteId');
+            const resultsEl = document.getElementById('dispatchResults');
+
+            if (!siteIdInput || !resultsEl) return;
+
+            const siteId = siteIdInput.value.trim();
+            if (!siteId) {
+                resultsEl.textContent = 'Please enter a site ID to dispatch.';
+                return;
+            }
+
+            const site = getSiteById(siteId);
+            if (!site) {
+                resultsEl.textContent = `Site ${siteId} not found.`;
+                return;
+            }
+
+            if (!hasValidLocation(site.location) || site.isDefaultLocation) {
+                resultsEl.textContent = `Site ${site.id} is missing valid coordinates.`;
+                return;
+            }
+
+            const ranked = getNearestNfos(site, 'any', 5);
+
+            if (!ranked.length) {
+                resultsEl.textContent = 'No on-shift NFOs with GPS available for dispatch.';
+                return;
+            }
+
+            const listItems = ranked.map((entry, index) => {
+                const statusLabel = entry.nfo.status === 'busy' ? 'Busy' : 'Free';
+                const currentSite = entry.nfo.siteId || 'none';
+                return `<li>${index + 1}) ${entry.nfo.name} (${entry.nfo.id}) – ${entry.distance.toFixed(2)} km – status: ${statusLabel} – current site: ${currentSite}</li>`;
+            }).join('');
+
+            resultsEl.innerHTML = `
+                <strong>Dispatch candidates for ${site.id}${site.name ? ` (${site.name})` : ''}:</strong>
+                <ul style="margin-top: 8px; padding-left: 20px;">${listItems}</ul>
+            `;
+
+            if (map && hasValidLocation(site.location)) {
+                map.setView([site.location.lat, site.location.lng], 12);
+            }
+
+            if (ranked[0]) {
+                const targetMarker = nfoMarkers.find(marker => marker.nfoData && marker.nfoData.id === ranked[0].nfo.id);
+                if (targetMarker) {
+                    targetMarker.openPopup();
+                }
+            }
+        }
+
+        function calculateDistance(loc1, loc2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = (loc2.lat - loc1.lat) * Math.PI / 180;
+            const dLng = (loc2.lng - loc1.lng) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(loc1.lat * Math.PI / 180) * Math.cos(loc2.lat * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
         }
 
         function calculateDistance(loc1, loc2) {

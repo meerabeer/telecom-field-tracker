@@ -551,7 +551,7 @@
         ];
 
         // Demo data - In production, this would come from a database
-        const nfoData = [];
+        let nfoData = [];
 
         // Site data - will be populated from CSV files
         const siteData = [];
@@ -699,6 +699,40 @@
             const { error } = await supabase.from('nfo_status').upsert(payload);
             if (error) {
                 console.error('Failed to save NFO status to Supabase', error);
+            }
+        }
+
+        async function loadAllNfosFromSupabase() {
+            try {
+                const { data, error } = await supabase.from('nfo_status').select('*');
+
+                if (error) {
+                    console.error('Failed to load NFOs from Supabase', error);
+                    return;
+                }
+
+                if (!data) return;
+
+                nfoData = data.map(row => ({
+                    id: row.id,
+                    name: row.name || row.id,
+                    onShift: !!row.on_shift,
+                    status: row.status || 'free',
+                    activity: row.activity || '',
+                    siteId: row.site_id || '',
+                    workOrderId: row.work_order_id || '',
+                    location: (row.lat != null && row.lng != null)
+                        ? { lat: row.lat, lng: row.lng }
+                        : null
+                }));
+
+                document.getElementById('totalNFOs').textContent = nfoData.length;
+
+                updateStats();
+                updateNFOList();
+                refreshNfoMarkers();
+            } catch (err) {
+                console.error('Unexpected error loading NFOs from Supabase', err);
             }
         }
 
@@ -1023,14 +1057,13 @@
             // Update total NFOs to reflect actual count
             document.getElementById('totalNFOs').textContent = nfoData.length;
             document.getElementById('totalSites').textContent = siteData.length;
-            
+
             initMap();
             updateNFOList();
             updateStats();
-            setInterval(() => {
-                updateNFOList();
-                updateStats();
-            }, 5000);
+
+            loadAllNfosFromSupabase();
+            setInterval(loadAllNfosFromSupabase, 10000);
         }
 
         function initMap() {

@@ -1,1 +1,1 @@
-*.csv merge=union
+*.csv text eol=lf merge=union

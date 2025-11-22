@@ -583,17 +583,33 @@
             }
         }
 
+        function dedupeUsers(users) {
+            const seen = new Set();
+            const unique = [];
+
+            users.forEach(user => {
+                const key = (user.username || '').toLowerCase();
+                if (!key || seen.has(key)) return;
+                seen.add(key);
+                unique.push(user);
+            });
+
+            return unique;
+        }
+
         function loadUsersFromText(text, fallback) {
             const rows = parseCSV(text, { skipHeader: true });
             const users = rows
                 .filter(row => row.length >= 2 && row[0] && row[1])
                 .map(row => ({ username: row[0], password: row[1] }));
 
-            return users.length ? users : fallback;
+            const result = users.length ? users : fallback;
+            return dedupeUsers(result);
         }
 
         function loadSitesFromText(text) {
             const rows = parseCSV(text, { skipHeader: true });
+            const seen = new Set();
             const sites = [];
 
             rows.forEach(row => {
@@ -603,11 +619,15 @@
                     const lng = parseFloat(lngStr);
                     const hasValidCoords = Number.isFinite(lat) && Number.isFinite(lng);
 
+                    const id = (siteId || 'SITE').trim();
+                    if (seen.has(id.toLowerCase())) return;
+
                     sites.push({
-                        id: siteId || 'SITE',
+                        id,
                         name: siteName || siteId || 'Unknown Site',
                         location: hasValidCoords ? { lat, lng } : { ...DEFAULT_COORDINATES }
                     });
+                    seen.add(id.toLowerCase());
                 }
             });
 

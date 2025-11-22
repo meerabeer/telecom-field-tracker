@@ -1435,6 +1435,28 @@
                 marker.siteId = site.id;
                 siteMarkers.push(marker);
             });
+        }
+
+        function refreshNfoMarkers() {
+            if (!map) return;
+
+            nfoMarkers.forEach(marker => map.removeLayer(marker));
+            nfoMarkers = [];
+            nfoRouteLines.forEach(line => map.removeLayer(line));
+            nfoRouteLines = [];
+            nfoConnectionLines.forEach(line => map.removeLayer(line));
+            nfoConnectionLines = [];
+
+            renderAreaLegend();
+        }
+
+        function refreshNfoMarkers() {
+            if (!map) return;
+
+            nfoMarkers.forEach(marker => map.removeLayer(marker));
+            nfoMarkers = [];
+
+            const activeRouteIds = new Set();
 
             renderAreaLegend();
         }
@@ -1842,6 +1864,22 @@
             return siteData.find(s => s.id && s.id.trim().toLowerCase() === id) || null;
         }
 
+        function refreshManagementViews() {
+            if (document.getElementById('managementDashboard').classList.contains('hidden')) {
+                return;
+            }
+
+            updateStats();
+            updateNFOList();
+            refreshNfoMarkers();
+        }
+
+        function getSiteById(siteId) {
+            if (!siteId) return null;
+            const id = siteId.trim().toLowerCase();
+            return siteData.find(s => s.id && s.id.trim().toLowerCase() === id) || null;
+        }
+
         function findNearestSite(nfoLocation) {
             if (!hasValidLocation(nfoLocation)) {
                 return null;
@@ -1899,6 +1937,11 @@
                 line.addTo(map);
                 dispatchLines.push(line);
             });
+
+            return candidates
+                .map(nfo => ({ nfo, distance: calculateDistance(nfo.location, site.location) }))
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, limit);
         }
 
         function runNfoSearch() {

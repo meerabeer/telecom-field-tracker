@@ -524,13 +524,13 @@
         const SUPABASE_ANON_KEY = "sb_publishable_Kifo4X6qxs6nkv7yilHRkA_7RapeV4a";  // sb_publishable_...
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const ORS_API_URL = "https://api.openrouteservice.org/v2/directions/driving-car";
-        const ORS_API_KEY = "YOUR_ORS_API_KEY_HERE"; // TODO: replace locally, do not commit a real key in public repos
+        const ORS_BACKEND_BASE_URL = "https://meerabeer1990-nfo-ors-backend.hf.space";
 
         let currentUser = null;
         let map = null;
         let nfoMarkers = [];
         let siteMarkers = [];
+        let nfoRouteLines = [];
         let watchId = null;
         let currentMapFilter = 'all';
 
@@ -642,35 +642,47 @@
                 throw new Error('Missing locations for ORS');
             }
 
-            const body = {
-                coordinates: [
-                    [nfoLocation.lng, nfoLocation.lat],
-                    [siteLocation.lng, siteLocation.lat]
-                ]
-            };
+            const url = new URL(`${ORS_BACKEND_BASE_URL}/eta`);
+            url.searchParams.set('start_lon', nfoLocation.lng);
+            url.searchParams.set('start_lat', nfoLocation.lat);
+            url.searchParams.set('end_lon', siteLocation.lng);
+            url.searchParams.set('end_lat', siteLocation.lat);
+            url.searchParams.set('profile', 'driving-car');
 
-            const response = await fetch(ORS_API_URL, {
-                method: 'POST',
-                headers: {
-                    'Authorization': ORS_API_KEY,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(body)
-            });
+            const response = await fetch(url.toString(), { method: 'GET' });
 
             if (!response.ok) {
-                throw new Error('ORS request failed: ' + response.status);
+                throw new Error('ORS backend request failed: ' + response.status);
             }
 
             const json = await response.json();
-            const summary = json?.features?.[0]?.properties?.summary;
-            if (!summary) {
-                throw new Error('ORS summary missing');
+            if (json == null || typeof json.distance_km !== 'number' || typeof json.duration_min !== 'number') {
+                throw new Error('ORS backend response missing distance or duration');
             }
 
-            const distanceKm = (summary.distance || 0) / 1000;
-            const etaMinutes = (summary.duration || 0) / 60;
+            const distanceKm = json.distance_km;
+            const etaMinutes = json.duration_min;
             return { distanceKm, etaMinutes };
+        }
+
+        async function fetchRouteGeoJSON(nfoLocation, siteLocation) {
+            if (!hasValidLocation(nfoLocation) || !hasValidLocation(siteLocation)) {
+                throw new Error('Missing locations for ORS route');
+            }
+
+            const url = new URL(`${ORS_BACKEND_BASE_URL}/route`);
+            url.searchParams.set('start_lon', nfoLocation.lng);
+            url.searchParams.set('start_lat', nfoLocation.lat);
+            url.searchParams.set('end_lon', siteLocation.lng);
+            url.searchParams.set('end_lat', siteLocation.lat);
+            url.searchParams.set('profile', 'driving-car');
+
+            const response = await fetch(url.toString(), { method: 'GET' });
+            if (!response.ok) {
+                throw new Error('ORS backend route request failed: ' + response.status);
+            }
+
+            return response.json();
         }
 
         async function updateBusyNfoRouteInfo(nfo) {
@@ -687,11 +699,20 @@
 
             try {
                 const { distanceKm, etaMinutes } = await fetchRoadRoute(nfo.location, activeSite.location);
+                let routeGeoJSON = null;
+
+                try {
+                    routeGeoJSON = await fetchRouteGeoJSON(nfo.location, activeSite.location);
+                } catch (routeErr) {
+                    console.error('ORS route GeoJSON error for NFO', nfo?.id, routeErr);
+                }
+
                 nfo.routeInfo = {
                     siteId: activeSite.id,
                     siteName: activeSite.name || '',
                     distanceKm,
-                    etaMinutes
+                    etaMinutes,
+                    routeGeoJSON
                 };
             } catch (err) {
                 console.error('ORS route error for NFO', nfo?.id, err);
@@ -1211,6 +1232,8 @@
 
             nfoMarkers.forEach(marker => map.removeLayer(marker));
             nfoMarkers = [];
+            nfoRouteLines.forEach(line => map.removeLayer(line));
+            nfoRouteLines = [];
 
             nfoData.forEach(nfo => {
                 if (!hasValidLocation(nfo.location)) return;
@@ -1229,6 +1252,21 @@
                 marker.nfoData = nfo;
                 marker.markerType = 'nfo';
                 nfoMarkers.push(marker);
+
+                if (nfo.onShift && nfo.status === 'busy' && nfo.routeInfo?.routeGeoJSON) {
+                    try {
+                        const routeLayer = L.geoJSON(nfo.routeInfo.routeGeoJSON, {
+                            style: {
+                                color: '#3b82f6',
+                                weight: 4,
+                                opacity: 0.6
+                            }
+                        }).addTo(map);
+                        nfoRouteLines.push(routeLayer);
+                    } catch (err) {
+                        console.error('Failed to render route for NFO', nfo.id, err);
+                    }
+                }
             });
 
             applyMapFilter();

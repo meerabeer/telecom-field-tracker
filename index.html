@@ -363,7 +363,6 @@
                         <option value="">Select User Type</option>
                         <option value="nfo">Network Field Officer (NFO)</option>
                         <option value="management">Management</option>
-                        <option value="superadmin">Super Admin</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -377,7 +376,7 @@
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
             </form>
             <p style="margin-top: 15px; text-align: center; font-size: 12px; color: var(--color-text-secondary);">
-                Demo: NFO: "nfo1"/"password" | Admin: "admin"/"password" | Super Admin: "superadmin"/"admin123"
+                Demo: NFO: "nfo1"/"password" | Admin: "admin"/"password"
             </p>
         </div>
     </div>
@@ -453,102 +452,6 @@
         </div>
     </div>
 
-    <!-- Super Admin Dashboard -->
-    <div id="superAdminDashboard" class="hidden">
-        <div class="header">
-            <h1>⚙️ Super Admin Panel</h1>
-            <div class="user-info">
-                <span id="superAdminUserName" style="font-weight: 600;"></span>
-                <button onclick="logout()" class="btn btn-secondary">Logout</button>
-            </div>
-        </div>
-
-        <div class="container">
-            <div class="management-dashboard">
-                <!-- User Management Section -->
-                <div style="background: var(--color-surface); padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px;">
-                    <h2 style="margin-bottom: 20px; color: var(--color-primary);">User Management</h2>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
-                        <!-- NFO Users -->
-                        <div>
-                            <h3 style="margin-bottom: 15px;">Network Field Officers (NFO)</h3>
-                            <div class="form-group">
-                                <label for="nfoCSVUpload">Upload NFO Users CSV:</label>
-                                <input type="file" id="nfoCSVUpload" accept=".csv" style="margin-bottom: 10px;">
-                                <button onclick="uploadNFOUsers()" class="btn btn-primary">Upload NFO Users</button>
-                            </div>
-                            <p style="font-size: 12px; color: var(--color-text-secondary); margin-top: 10px;">
-                                CSV Format: username,password (one per line)<br>
-                                Example: nfo1,password123
-                            </p>
-                            <div style="margin-top: 20px; max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; padding: 15px;">
-                                <h4 style="margin-bottom: 10px;">Current NFO Users (<span id="nfoUserCount">0</span>):</h4>
-                                <div id="nfoUserList" style="font-size: 13px;"></div>
-                            </div>
-                        </div>
-
-                        <!-- Management Users -->
-                        <div>
-                            <h3 style="margin-bottom: 15px;">Management Users</h3>
-                            <div class="form-group">
-                                <label for="mgmtCSVUpload">Upload Management Users CSV:</label>
-                                <input type="file" id="mgmtCSVUpload" accept=".csv" style="margin-bottom: 10px;">
-                                <button onclick="uploadMgmtUsers()" class="btn btn-primary">Upload Management Users</button>
-                            </div>
-                            <p style="font-size: 12px; color: var(--color-text-secondary); margin-top: 10px;">
-                                CSV Format: username,password (one per line)<br>
-                                Example: admin1,admin123
-                            </p>
-                            <div style="margin-top: 20px; max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; padding: 15px;">
-                                <h4 style="margin-bottom: 10px;">Current Management Users (<span id="mgmtUserCount">0</span>):</h4>
-                                <div id="mgmtUserList" style="font-size: 13px;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Site Management Section -->
-                <div style="background: var(--color-surface); padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <h2 style="margin-bottom: 20px; color: var(--color-primary);">Site Management</h2>
-                    
-                    <div class="form-group">
-                        <label for="siteCSVUpload">Upload Sites CSV:</label>
-                        <input type="file" id="siteCSVUpload" accept=".csv" style="margin-bottom: 10px;">
-                        <button onclick="uploadSites()" class="btn btn-success" style="margin-right: 10px;">Upload Sites</button>
-                        <button onclick="downloadSiteTemplate()" class="btn btn-secondary">Download CSV Template</button>
-                    </div>
-                    
-                    <p style="font-size: 12px; color: var(--color-text-secondary); margin-top: 10px; margin-bottom: 20px;">
-                        CSV Format: site_id,site_name,latitude,longitude (with header row)<br>
-                        Example:<br>
-                        site_id,site_name,latitude,longitude<br>
-                        SITE-0001,Site 1,24.7136,46.6753
-                    </p>                <div style="background: #f1f5f9; padding: 20px; border-radius: 8px;">
-                    <h3 style="margin-bottom: 15px;">Current Sites Information</h3>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
-                        <div>
-                            <strong>Total Sites:</strong>
-                            <div style="font-size: 24px; color: var(--color-primary); margin-top: 5px;" id="adminTotalSites">0</div>
-                        </div>
-                            <div>
-                                <strong>Last Updated:</strong>
-                                <div style="font-size: 14px; margin-top: 5px;" id="sitesLastUpdated">Never</div>
-                            </div>
-                            <div>
-                                <strong>Status:</strong>
-                                <div style="font-size: 14px; margin-top: 5px;">
-                                    <span class="status-badge" style="background: #dcfce7; color: var(--color-success);">Active</span>
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="viewSitesPreview()" class="btn btn-secondary" style="margin-top: 15px;">Preview Sites on Map</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Management Dashboard -->
     <div id="managementDashboard" class="hidden">
         <div class="header">
@@ -609,23 +512,93 @@
         let watchId = null;
         let currentMapFilter = 'all';
 
-        // User credentials storage (In production, use secure backend)
-        let nfoUsers = [
+        let nfoUsers = [];
+        let mgmtUsers = [];
+
+        const DEFAULT_NFO_USERS = [
             { username: 'nfo1', password: 'password' },
             { username: 'nfo2', password: 'password' }
         ];
-        let mgmtUsers = [
+
+        const DEFAULT_MGMT_USERS = [
             { username: 'admin', password: 'password' }
         ];
-        let superAdminCredentials = { username: 'superadmin', password: 'admin123' };
 
         // Demo data - In production, this would come from a database
         const nfoData = [];
-        
+
+        // Site data - will be populated from CSV files
+        const siteData = [];
+
+        const DEFAULT_SITES = [
+            { id: 'SITE-0001', name: 'Riyadh Tower 1', location: { lat: 24.7136, lng: 46.6753 } },
+            { id: 'SITE-0002', name: 'Jeddah Station', location: { lat: 21.4225, lng: 39.8262 } },
+            { id: 'SITE-0003', name: 'Dammam Hub', location: { lat: 26.4207, lng: 50.0888 } }
+        ];
+
+        function parseCSV(text, { skipHeader = false } = {}) {
+            if (!text) return [];
+            const lines = text.trim().split(/\r\n|\r|\n/);
+            const rows = lines
+                .map(line => line.split(',').map(v => v.trim()))
+                .filter(row => row.some(cell => cell.length > 0));
+
+            if (skipHeader && rows.length && rows[0][0] && /^(username|site_id)$/i.test(rows[0][0])) {
+                rows.shift();
+            }
+
+            return rows;
+        }
+
+        async function fetchCSV(path) {
+            try {
+                const response = await fetch(path);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.text();
+            } catch (error) {
+                console.warn(`Unable to load ${path}`, error);
+                return null;
+            }
+        }
+
+        function loadUsersFromText(text, fallback) {
+            const rows = parseCSV(text, { skipHeader: true });
+            const users = rows
+                .filter(row => row.length >= 2 && row[0] && row[1])
+                .map(row => ({ username: row[0], password: row[1] }));
+
+            return users.length ? users : fallback;
+        }
+
+        function loadSitesFromText(text) {
+            const rows = parseCSV(text, { skipHeader: true });
+            const sites = [];
+
+            rows.forEach(row => {
+                if (row.length >= 4) {
+                    const [siteId, siteName, latStr, lngStr] = row;
+                    const lat = parseFloat(latStr);
+                    const lng = parseFloat(lngStr);
+
+                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                        return;
+                    }
+
+                    sites.push({
+                        id: siteId || 'SITE',
+                        name: siteName || siteId || 'Unknown Site',
+                        location: { lat, lng }
+                    });
+                }
+            });
+
+            return sites.length ? sites : DEFAULT_SITES;
+        }
+
         // Function to initialize NFO data based on uploaded users
         function initializeNFOData() {
             nfoData.length = 0; // Clear existing
-            
+
             nfoUsers.forEach((user, index) => {
                 nfoData.push({
                     id: user.username,
@@ -641,31 +614,43 @@
                     }
                 });
             });
-            
+
             // Update total NFOs count
             document.getElementById('totalNFOs').textContent = nfoData.length;
         }
-        
-        // Initialize with default users
-        initializeNFOData();
 
-        // Site data - will be populated by Super Admin CSV upload
-        const siteData = [];
+        async function loadDataFromFiles() {
+            const [nfoText, mgmtText, siteText] = await Promise.all([
+                fetchCSV('NFOusers.csv'),
+                fetchCSV('MgmtUsers.csv'),
+                fetchCSV('Site_Coordinates.csv')
+            ]);
+
+            nfoUsers = loadUsersFromText(nfoText, DEFAULT_NFO_USERS);
+            mgmtUsers = loadUsersFromText(mgmtText, DEFAULT_MGMT_USERS);
+
+            siteData.length = 0;
+            const sites = loadSitesFromText(siteText);
+            siteData.push(...sites);
+
+            initializeNFOData();
+            document.getElementById('totalSites').textContent = siteData.length;
+        }
+
+        const dataLoadPromise = loadDataFromFiles();
 
         // Login handling
-        document.getElementById('loginForm').addEventListener('submit', (e) => {
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            await dataLoadPromise;
             const userType = document.getElementById('userType').value;
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
             // Validate credentials
             let isValid = false;
-            
-            if (userType === 'superadmin') {
-                isValid = username === superAdminCredentials.username && 
-                         password === superAdminCredentials.password;
-            } else if (userType === 'nfo') {
+
+            if (userType === 'nfo') {
                 isValid = nfoUsers.some(user => user.username === username && user.password === password);
             } else if (userType === 'management') {
                 isValid = mgmtUsers.some(user => user.username === username && user.password === password);
@@ -679,7 +664,7 @@
             currentUser = {
                 type: userType,
                 username: username,
-                id: userType === 'nfo' ? username : (userType === 'superadmin' ? 'SUPER-001' : 'MGMT-001')
+                id: userType === 'nfo' ? username : 'MGMT-001'
             };
 
             document.getElementById('loginScreen').classList.add('hidden');
@@ -688,10 +673,6 @@
                 document.getElementById('nfoDashboard').classList.remove('hidden');
                 document.getElementById('nfoUserName').textContent = username;
                 initNFODashboard();
-            } else if (userType === 'superadmin') {
-                document.getElementById('superAdminDashboard').classList.remove('hidden');
-                document.getElementById('superAdminUserName').textContent = username;
-                initSuperAdminDashboard();
             } else {
                 document.getElementById('managementDashboard').classList.remove('hidden');
                 document.getElementById('mgmtUserName').textContent = username;
@@ -1000,243 +981,6 @@
             return R * c;
         }
 
-        // Super Admin Functions
-        function initSuperAdminDashboard() {
-            updateUserLists();
-        }
-
-        function parseCSV(text) {
-            const lines = text.trim().split('\n');
-            return lines.map(line => {
-                // Simple CSV parsing - handles basic cases
-                const values = line.split(',').map(v => v.trim());
-                return values;
-            });
-        }
-
-        function uploadNFOUsers() {
-            const fileInput = document.getElementById('nfoCSVUpload');
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                alert('Please select a CSV file first!');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const text = e.target.result;
-                const rows = parseCSV(text);
-                
-                nfoUsers = [];
-                rows.forEach(row => {
-                    if (row.length >= 2 && row[0] && row[1]) {
-                        nfoUsers.push({
-                            username: row[0],
-                            password: row[1]
-                        });
-                    }
-                });
-                
-                // Regenerate NFO data with new users
-                initializeNFOData();
-                
-                updateUserLists();
-                alert(`Successfully uploaded ${nfoUsers.length} NFO users!\n\nTotal NFOs available: ${nfoData.length}`);
-                fileInput.value = '';
-            };
-            reader.readAsText(file);
-        }
-
-        function uploadMgmtUsers() {
-            const fileInput = document.getElementById('mgmtCSVUpload');
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                alert('Please select a CSV file first!');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const text = e.target.result;
-                const rows = parseCSV(text);
-                
-                mgmtUsers = [];
-                rows.forEach(row => {
-                    if (row.length >= 2 && row[0] && row[1]) {
-                        mgmtUsers.push({
-                            username: row[0],
-                            password: row[1]
-                        });
-                    }
-                });
-                
-                updateUserLists();
-                alert(`Successfully uploaded ${mgmtUsers.length} management users!`);
-                fileInput.value = '';
-            };
-            reader.readAsText(file);
-        }
-
-        function uploadSites() {
-            const fileInput = document.getElementById('siteCSVUpload');
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                alert('Please select a CSV file first!');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                let text = e.target.result;
-                
-                // Remove BOM if present
-                if (text.charCodeAt(0) === 0xFEFF) {
-                    text = text.slice(1);
-                }
-                
-                // Split by any line break format
-                const lines = text.split(/\r\n|\r|\n/);
-                
-                // Clear existing sites
-                siteData.length = 0;
-                
-                let processedCount = 0;
-                
-                // Process all lines (skip header at index 0)
-                for (let i = 1; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    
-                    // Skip empty lines
-                    if (!line || line.length === 0) continue;
-                    
-                    // Count this row
-                    processedCount++;
-                    
-                    // Split by comma
-                    const values = line.split(',');
-                    
-                    if (values.length >= 2) {
-                        const siteId = values[0].trim();
-                        const siteName = values[1].trim() || 'Unknown';
-                        let lat = 24.7136; // Default Riyadh coordinates
-                        let lng = 46.6753;
-                        
-                        // Try to parse coordinates, use defaults if invalid
-                        if (values.length >= 4) {
-                            const parsedLat = parseFloat(values[2].trim());
-                            const parsedLng = parseFloat(values[3].trim());
-                            
-                            if (!isNaN(parsedLat) && !isNaN(parsedLng) && parsedLat !== 0 && parsedLng !== 0 && parsedLat !== parsedLng) {
-                                lat = parsedLat;
-                                lng = parsedLng;
-                            }
-                        }
-                        
-                        // Add ALL sites - even those with invalid coords
-                        if (siteId) {
-                            siteData.push({
-                                id: siteId,
-                                name: siteName,
-                                location: { lat, lng }
-                            });
-                        }
-                    }
-                }
-                
-                // Update UI with actual count
-                document.getElementById('adminTotalSites').textContent = siteData.length;
-                document.getElementById('totalSites').textContent = siteData.length;
-                document.getElementById('sitesLastUpdated').textContent = new Date().toLocaleString();
-                
-                console.log(`Processed ${processedCount} sites from ${lines.length - 1} data lines`);
-                alert(`Successfully uploaded ${siteData.length} sites! These will be shown on the management map.`);
-                fileInput.value = '';
-            };
-            reader.readAsText(file, 'UTF-8');
-        }
-
-        function downloadSiteTemplate() {
-            const csvContent = 'site_id,site_name,latitude,longitude\nSITE-0001,Riyadh Tower 1,24.7136,46.6753\nSITE-0002,Jeddah Station,21.4225,39.8262\nSITE-0003,Dammam Hub,26.4207,50.0888';
-            
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            
-            link.href = url;
-            link.download = 'site_template.csv';
-            link.style.display = 'none';
-            
-            document.body.appendChild(link);
-            link.click();
-            
-            // Clean up
-            setTimeout(() => {
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-            }, 100);
-            
-            alert('CSV template downloaded successfully!');
-        }
-
-        function viewSitesPreview() {
-            if (siteData.length === 0) {
-                alert('No sites uploaded yet! Please upload a CSV file first.');
-                return;
-            }
-            
-            // Show preview information with more details
-            const sampleSites = siteData.slice(0, 10);
-            let previewMessage = `✓ SUCCESSFULLY LOADED ${siteData.length} SITES\n\n`;
-            previewMessage += '═══════════════════════════════════\n';
-            previewMessage += 'First 10 sites preview:\n';
-            previewMessage += '═══════════════════════════════════\n\n';
-            
-            sampleSites.forEach((site, index) => {
-                previewMessage += `${index + 1}. ${site.id} - ${site.name}\n`;
-                previewMessage += `   📍 Coordinates: ${site.location.lat}, ${site.location.lng}\n\n`;
-            });
-            
-            previewMessage += '═══════════════════════════════════\n';
-            previewMessage += `All ${siteData.length} sites are ready and will be\n`;
-            previewMessage += 'displayed on the Management Dashboard map.\n\n';
-            previewMessage += 'You can now login as Management to view them!';
-            
-            alert(previewMessage);
-        }
-
-        function updateUserLists() {
-            // Update NFO user list
-            const nfoListDiv = document.getElementById('nfoUserList');
-            document.getElementById('nfoUserCount').textContent = nfoUsers.length;
-            
-            if (nfoUsers.length === 0) {
-                nfoListDiv.innerHTML = '<p style="color: var(--color-text-secondary);">No NFO users uploaded</p>';
-            } else {
-                nfoListDiv.innerHTML = nfoUsers.map((user, index) => 
-                    `<div style="padding: 8px; border-bottom: 1px solid var(--color-border);">
-                        ${index + 1}. ${user.username}
-                    </div>`
-                ).join('');
-            }
-
-            // Update Management user list
-            const mgmtListDiv = document.getElementById('mgmtUserList');
-            document.getElementById('mgmtUserCount').textContent = mgmtUsers.length;
-            
-            if (mgmtUsers.length === 0) {
-                mgmtListDiv.innerHTML = '<p style="color: var(--color-text-secondary);">No management users uploaded</p>';
-            } else {
-                mgmtListDiv.innerHTML = mgmtUsers.map((user, index) => 
-                    `<div style="padding: 8px; border-bottom: 1px solid var(--color-border);">
-                        ${index + 1}. ${user.username}
-                    </div>`
-                ).join('');
-            }
-        }
-
         function logout() {
             if (watchId) {
                 navigator.geolocation.clearWatch(watchId);
@@ -1245,7 +989,6 @@
             document.getElementById('loginScreen').classList.remove('hidden');
             document.getElementById('nfoDashboard').classList.add('hidden');
             document.getElementById('managementDashboard').classList.add('hidden');
-            document.getElementById('superAdminDashboard').classList.add('hidden');
             document.getElementById('loginForm').reset();
         }
     </script>

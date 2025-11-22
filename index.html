@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telecom Field Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        :root {
+            --color-primary: #2563eb;
+            --color-success: #16a34a;
+            --color-warning: #ea580c;
+            --color-danger: #dc2626;
+            --color-bg: #f8fafc;
+            --color-surface: #ffffff;
+            --color-text: #1e293b;
+            --color-text-secondary: #64748b;
+            --color-border: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: var(--color-surface);
+            border-bottom: 2px solid var(--color-border);
+            padding: 16px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            color: var(--color-primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-badge.on-shift {
+            background: #dcfce7;
+            color: var(--color-success);
+        }
+
+        .status-badge.off-shift {
+            background: #fee2e2;
+            color: var(--color-danger);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--color-primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1d4ed8;
+        }
+
+        .btn-success {
+            background: var(--color-success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--color-danger);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--color-text-secondary);
+            color: white;
+        }
+
+        .login-screen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .login-card {
+            background: var(--color-surface);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-card h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--color-primary);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--color-text);
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid var(--color-border);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+
+        .nfo-panel {
+            background: var(--color-surface);
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .nfo-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .current-activity {
+            background: #f1f5f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .current-activity h3 {
+            margin-bottom: 15px;
+            color: var(--color-primary);
+        }
+
+        .activity-detail {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .activity-detail:last-child {
+            border-bottom: none;
+        }
+
+        .management-dashboard {
+            display: grid;
+            gap: 20px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: var(--color-surface);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card .number {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            color: var(--color-text-secondary);
+            font-size: 14px;
+        }
+
+        .map-container {
+            background: var(--color-surface);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        #map {
+            height: 600px;
+            width: 100%;
+        }
+
+        .nfo-list {
+            background: var(--color-surface);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .nfo-list h3 {
+            margin-bottom: 15px;
+            color: var(--color-primary);
+        }
+
+        .nfo-item {
+            padding: 12px;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .nfo-item:hover {
+            background: #f8fafc;
+        }
+
+        .nfo-item-info {
+            flex: 1;
+        }
+
+        .nfo-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .nfo-details {
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .status-indicator.busy {
+            background: var(--color-danger);
+        }
+
+        .status-indicator.free {
+            background: var(--color-success);
+        }
+
+        .status-indicator.off {
+            background: var(--color-text-secondary);
+        }
+
+        .map-controls {
+            padding: 15px;
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid var(--color-border);
+            background: white;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn.active {
+            background: var(--color-primary);
+            color: white;
+            border-color: var(--color-primary);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .nfo-form {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            #map {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-card">
+            <h2>🌐 Telecom Field Tracker</h2>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="userType">Login As:</label>
+                    <select id="userType" required>
+                        <option value="">Select User Type</option>
+                        <option value="nfo">Network Field Officer (NFO)</option>
+                        <option value="management">Management</option>
+                        <option value="superadmin">Super Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" placeholder="Enter your username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" placeholder="Enter your password" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+            </form>
+            <p style="margin-top: 15px; text-align: center; font-size: 12px; color: var(--color-text-secondary);">
+                Demo: NFO: "nfo1"/"password" | Admin: "admin"/"password" | Super Admin: "superadmin"/"admin123"
+            </p>
+        </div>
+    </div>
+
+    <!-- NFO Dashboard -->
+    <div id="nfoDashboard" class="hidden">
+        <div class="header">
+            <h1>📱 NFO Dashboard</h1>
+            <div class="user-info">
+                <span id="nfoUserName" style="font-weight: 600;"></span>
+                <span id="shiftStatus" class="status-badge off-shift">Off Shift</span>
+                <button onclick="logout()" class="btn btn-secondary">Logout</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="nfo-panel">
+                <h2 style="margin-bottom: 20px;">Update Your Activity</h2>
+                
+                <div class="nfo-form">
+                    <div class="form-group">
+                        <label for="siteId">Site ID:</label>
+                        <input type="text" id="siteId" placeholder="e.g., SITE-1234">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="workOrderId">Work Order ID:</label>
+                        <input type="text" id="workOrderId" placeholder="e.g., WO-5678">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="activityType">Activity Type:</label>
+                        <select id="activityType">
+                            <option value="">Select Activity</option>
+                            <option value="alarm">Alarm</option>
+                            <option value="outage">Outage</option>
+                            <option value="maintenance">Maintenance</option>
+                            <option value="installation">Installation</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+                    <button onclick="toggleShift()" id="shiftToggleBtn" class="btn btn-success">Start Shift</button>
+                    <button onclick="updateActivity()" class="btn btn-primary">Update Activity</button>
+                    <button onclick="clearActivity()" class="btn btn-secondary">Clear Activity</button>
+                </div>
+
+                <div class="current-activity" id="currentActivity">
+                    <h3>Current Activity Status</h3>
+                    <div class="activity-detail">
+                        <span><strong>Status:</strong></span>
+                        <span id="activityStatus">Not on shift</span>
+                    </div>
+                    <div class="activity-detail">
+                        <span><strong>Site ID:</strong></span>
+                        <span id="displaySiteId">-</span>
+                    </div>
+                    <div class="activity-detail">
+                        <span><strong>Work Order:</strong></span>
+                        <span id="displayWorkOrder">-</span>
+                    </div>
+                    <div class="activity-detail">
+                        <span><strong>Activity:</strong></span>
+                        <span id="displayActivity">-</span>
+                    </div>
+                    <div class="activity-detail">
+                        <span><strong>Location:</strong></span>
+                        <span id="displayLocation">Retrieving...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Super Admin Dashboard -->
+    <div id="superAdminDashboard" class="hidden">
+        <div class="header">
+            <h1>⚙️ Super Admin Panel</h1>
+            <div class="user-info">
+                <span id="superAdminUserName" style="font-weight: 600;"></span>
+                <button onclick="logout()" class="btn btn-secondary">Logout</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="management-dashboard">
+                <!-- User Management Section -->
+                <div style="background: var(--color-surface); padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 20px; color: var(--color-primary);">User Management</h2>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                        <!-- NFO Users -->
+                        <div>
+                            <h3 style="margin-bottom: 15px;">Network Field Officers (NFO)</h3>
+                            <div class="form-group">
+                                <label for="nfoCSVUpload">Upload NFO Users CSV:</label>
+                                <input type="file" id="nfoCSVUpload" accept=".csv" style="margin-bottom: 10px;">
+                                <button onclick="uploadNFOUsers()" class="btn btn-primary">Upload NFO Users</button>
+                            </div>
+                            <p style="font-size: 12px; color: var(--color-text-secondary); margin-top: 10px;">
+                                CSV Format: username,password (one per line)<br>
+                                Example: nfo1,password123
+                            </p>
+                            <div style="margin-top: 20px; max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; padding: 15px;">
+                                <h4 style="margin-bottom: 10px;">Current NFO Users (<span id="nfoUserCount">0</span>):</h4>
+                                <div id="nfoUserList" style="font-size: 13px;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Management Users -->
+                        <div>
+                            <h3 style="margin-bottom: 15px;">Management Users</h3>
+                            <div class="form-group">
+                                <label for="mgmtCSVUpload">Upload Management Users CSV:</label>
+                                <input type="file" id="mgmtCSVUpload" accept=".csv" style="margin-bottom: 10px;">
+                                <button onclick="uploadMgmtUsers()" class="btn btn-primary">Upload Management Users</button>
+                            </div>
+                            <p style="font-size: 12px; color: var(--color-text-secondary); margin-top: 10px;">
+                                CSV Format: username,password (one per line)<br>
+                                Example: admin1,admin123
+                            </p>
+                            <div style="margin-top: 20px; max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; padding: 15px;">
+                                <h4 style="margin-bottom: 10px;">Current Management Users (<span id="mgmtUserCount">0</span>):</h4>
+                                <div id="mgmtUserList" style="font-size: 13px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Site Management Section -->
+                <div style="background: var(--color-surface); padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+                    <h2 style="margin-bottom: 20px; color: var(--color-primary);">Site Management</h2>
+                    
+                    <div class="form-group">
+                        <label for="siteCSVUpload">Upload Sites CSV:</label>
+                        <input type="file" id="siteCSVUpload" accept=".csv" style="margin-bottom: 10px;">
+                        <button onclick="uploadSites()" class="btn btn-success" style="margin-right: 10px;">Upload Sites</button>
+                        <button onclick="downloadSiteTemplate()" class="btn btn-secondary">Download CSV Template</button>
+                    </div>
+                    
+                    <p style="font-size: 12px; color: var(--color-text-secondary); margin-top: 10px; margin-bottom: 20px;">
+                        CSV Format: site_id,site_name,latitude,longitude (with header row)<br>
+                        Example:<br>
+                        site_id,site_name,latitude,longitude<br>
+                        SITE-0001,Site 1,24.7136,46.6753
+                    </p>                <div style="background: #f1f5f9; padding: 20px; border-radius: 8px;">
+                    <h3 style="margin-bottom: 15px;">Current Sites Information</h3>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                        <div>
+                            <strong>Total Sites:</strong>
+                            <div style="font-size: 24px; color: var(--color-primary); margin-top: 5px;" id="adminTotalSites">0</div>
+                        </div>
+                            <div>
+                                <strong>Last Updated:</strong>
+                                <div style="font-size: 14px; margin-top: 5px;" id="sitesLastUpdated">Never</div>
+                            </div>
+                            <div>
+                                <strong>Status:</strong>
+                                <div style="font-size: 14px; margin-top: 5px;">
+                                    <span class="status-badge" style="background: #dcfce7; color: var(--color-success);">Active</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button onclick="viewSitesPreview()" class="btn btn-secondary" style="margin-top: 15px;">Preview Sites on Map</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Management Dashboard -->
+    <div id="managementDashboard" class="hidden">
+        <div class="header">
+            <h1>📊 Management Dashboard</h1>
+            <div class="user-info">
+                <span id="mgmtUserName" style="font-weight: 600;"></span>
+                <button onclick="logout()" class="btn btn-secondary">Logout</button>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="number" id="totalNFOs" style="color: var(--color-primary);">50</div>
+                    <div class="label">Total NFOs</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="onShiftNFOs" style="color: var(--color-success);">0</div>
+                    <div class="label">On Shift</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="busyNFOs" style="color: var(--color-danger);">0</div>
+                    <div class="label">Busy</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="totalSites" style="color: var(--color-warning);">0</div>
+                    <div class="label">Total Sites</div>
+                </div>
+            </div>
+
+            <div class="management-dashboard">
+                <div class="map-container">
+                    <div class="map-controls">
+                        <button class="filter-btn active" onclick="filterMap('all')">All</button>
+                        <button class="filter-btn" onclick="filterMap('nfo')">NFOs Only</button>
+                        <button class="filter-btn" onclick="filterMap('sites')">Sites Only</button>
+                        <button class="filter-btn" onclick="filterMap('busy')">Busy NFOs</button>
+                        <button class="filter-btn" onclick="filterMap('free')">Free NFOs</button>
+                    </div>
+                    <div id="map"></div>
+                </div>
+
+                <div class="nfo-list">
+                    <h3>Field Engineers Status</h3>
+                    <div id="nfoListContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // App State
+        let currentUser = null;
+        let map = null;
+        let nfoMarkers = [];
+        let siteMarkers = [];
+        let watchId = null;
+        let currentMapFilter = 'all';
+
+        // User credentials storage (In production, use secure backend)
+        let nfoUsers = [
+            { username: 'nfo1', password: 'password' },
+            { username: 'nfo2', password: 'password' }
+        ];
+        let mgmtUsers = [
+            { username: 'admin', password: 'password' }
+        ];
+        let superAdminCredentials = { username: 'superadmin', password: 'admin123' };
+
+        // Demo data - In production, this would come from a database
+        const nfoData = [];
+        
+        // Function to initialize NFO data based on uploaded users
+        function initializeNFOData() {
+            nfoData.length = 0; // Clear existing
+            
+            nfoUsers.forEach((user, index) => {
+                nfoData.push({
+                    id: user.username,
+                    name: `Engineer ${index + 1}`,
+                    onShift: false,
+                    status: 'free',
+                    activity: null,
+                    siteId: null,
+                    workOrderId: null,
+                    location: {
+                        lat: 24.7136 + (Math.random() - 0.5) * 0.5,
+                        lng: 46.6753 + (Math.random() - 0.5) * 0.5
+                    }
+                });
+            });
+            
+            // Update total NFOs count
+            document.getElementById('totalNFOs').textContent = nfoData.length;
+        }
+        
+        // Initialize with default users
+        initializeNFOData();
+
+        // Site data - will be populated by Super Admin CSV upload
+        const siteData = [];
+
+        // Login handling
+        document.getElementById('loginForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const userType = document.getElementById('userType').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            // Validate credentials
+            let isValid = false;
+            
+            if (userType === 'superadmin') {
+                isValid = username === superAdminCredentials.username && 
+                         password === superAdminCredentials.password;
+            } else if (userType === 'nfo') {
+                isValid = nfoUsers.some(user => user.username === username && user.password === password);
+            } else if (userType === 'management') {
+                isValid = mgmtUsers.some(user => user.username === username && user.password === password);
+            }
+
+            if (!isValid) {
+                alert('Invalid username or password!');
+                return;
+            }
+
+            currentUser = {
+                type: userType,
+                username: username,
+                id: userType === 'nfo' ? username : (userType === 'superadmin' ? 'SUPER-001' : 'MGMT-001')
+            };
+
+            document.getElementById('loginScreen').classList.add('hidden');
+
+            if (userType === 'nfo') {
+                document.getElementById('nfoDashboard').classList.remove('hidden');
+                document.getElementById('nfoUserName').textContent = username;
+                initNFODashboard();
+            } else if (userType === 'superadmin') {
+                document.getElementById('superAdminDashboard').classList.remove('hidden');
+                document.getElementById('superAdminUserName').textContent = username;
+                initSuperAdminDashboard();
+            } else {
+                document.getElementById('managementDashboard').classList.remove('hidden');
+                document.getElementById('mgmtUserName').textContent = username;
+                initManagementDashboard();
+            }
+        });
+
+        // NFO Dashboard Functions
+        function initNFODashboard() {
+            startLocationTracking();
+        }
+
+        function startLocationTracking() {
+            if ("geolocation" in navigator) {
+                watchId = navigator.geolocation.watchPosition(
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        document.getElementById('displayLocation').textContent = 
+                            `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                        
+                        // Update NFO location in demo data
+                        const nfo = nfoData.find(n => n.id === currentUser.id);
+                        if (nfo) {
+                            nfo.location = { lat, lng };
+                        }
+                    },
+                    (error) => {
+                        document.getElementById('displayLocation').textContent = 
+                            'Location unavailable (using demo location)';
+                        // Use demo location
+                        const demoLat = 24.7136 + Math.random() * 0.1;
+                        const demoLng = 46.6753 + Math.random() * 0.1;
+                        document.getElementById('displayLocation').textContent = 
+                            `${demoLat.toFixed(6)}, ${demoLng.toFixed(6)} (Demo)`;
+                    },
+                    { enableHighAccuracy: true, maximumAge: 10000 }
+                );
+            } else {
+                document.getElementById('displayLocation').textContent = 
+                    'Geolocation not supported';
+            }
+        }
+
+        function toggleShift() {
+            const btn = document.getElementById('shiftToggleBtn');
+            const badge = document.getElementById('shiftStatus');
+            const statusText = document.getElementById('activityStatus');
+            
+            const nfo = nfoData.find(n => n.id === currentUser.id) || nfoData[0];
+            nfo.onShift = !nfo.onShift;
+
+            if (nfo.onShift) {
+                btn.textContent = 'End Shift';
+                btn.className = 'btn btn-danger';
+                badge.textContent = 'On Shift';
+                badge.className = 'status-badge on-shift';
+                statusText.textContent = 'On shift - Available';
+            } else {
+                btn.textContent = 'Start Shift';
+                btn.className = 'btn btn-success';
+                badge.textContent = 'Off Shift';
+                badge.className = 'status-badge off-shift';
+                statusText.textContent = 'Not on shift';
+                clearActivity();
+            }
+        }
+
+        function updateActivity() {
+            const siteId = document.getElementById('siteId').value;
+            const workOrderId = document.getElementById('workOrderId').value;
+            const activityType = document.getElementById('activityType').value;
+
+            const nfo = nfoData.find(n => n.id === currentUser.id) || nfoData[0];
+            
+            if (!nfo.onShift) {
+                alert('Please start your shift first!');
+                return;
+            }
+
+            if (!siteId || !workOrderId || !activityType) {
+                alert('Please fill in all fields!');
+                return;
+            }
+
+            nfo.siteId = siteId;
+            nfo.workOrderId = workOrderId;
+            nfo.activity = activityType;
+            nfo.status = 'busy';
+
+            document.getElementById('displaySiteId').textContent = siteId;
+            document.getElementById('displayWorkOrder').textContent = workOrderId;
+            document.getElementById('displayActivity').textContent = 
+                activityType.charAt(0).toUpperCase() + activityType.slice(1);
+            document.getElementById('activityStatus').textContent = 'On shift - Busy';
+
+            alert('Activity updated successfully!');
+        }
+
+        function clearActivity() {
+            const nfo = nfoData.find(n => n.id === currentUser.id) || nfoData[0];
+            nfo.siteId = null;
+            nfo.workOrderId = null;
+            nfo.activity = null;
+            nfo.status = 'free';
+
+            document.getElementById('siteId').value = '';
+            document.getElementById('workOrderId').value = '';
+            document.getElementById('activityType').value = '';
+            document.getElementById('displaySiteId').textContent = '-';
+            document.getElementById('displayWorkOrder').textContent = '-';
+            document.getElementById('displayActivity').textContent = '-';
+            
+            if (nfo.onShift) {
+                document.getElementById('activityStatus').textContent = 'On shift - Available';
+            }
+        }
+
+        // Management Dashboard Functions
+        function initManagementDashboard() {
+            // Update total NFOs to reflect actual count
+            document.getElementById('totalNFOs').textContent = nfoData.length;
+            document.getElementById('totalSites').textContent = siteData.length;
+            
+            initMap();
+            updateNFOList();
+            updateStats();
+            setInterval(() => {
+                updateNFOList();
+                updateStats();
+            }, 5000);
+        }
+
+        function initMap() {
+            map = L.map('map').setView([24.7136, 46.6753], 10);
+
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+
+            // Create custom icons
+            const nfoIcon = L.divIcon({
+                html: '<div style="background: #2563eb; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                className: 'custom-marker',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+
+            const nfoBusyIcon = L.divIcon({
+                html: '<div style="background: #dc2626; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+                className: 'custom-marker',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+
+            const siteIcon = L.divIcon({
+                html: '<div style="background: #ea580c; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"></div>',
+                className: 'custom-marker',
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
+            });
+
+            // Add NFO markers
+            nfoData.forEach(nfo => {
+                const icon = nfo.status === 'busy' ? nfoBusyIcon : nfoIcon;
+                const marker = L.marker([nfo.location.lat, nfo.location.lng], { icon })
+                    .bindPopup(`
+                        <strong>${nfo.name}</strong><br>
+                        ID: ${nfo.id}<br>
+                        Status: ${nfo.onShift ? (nfo.status === 'busy' ? 'Busy' : 'Available') : 'Off Shift'}<br>
+                        ${nfo.siteId ? `Site: ${nfo.siteId}<br>` : ''}
+                        ${nfo.activity ? `Activity: ${nfo.activity}` : ''}
+                    `)
+                    .addTo(map);
+                
+                marker.nfoData = nfo;
+                marker.markerType = 'nfo';
+                nfoMarkers.push(marker);
+            });
+
+            // Add site markers (sample - showing 200 for performance)
+            siteData.slice(0, 200).forEach(site => {
+                const marker = L.marker([site.location.lat, site.location.lng], { icon: siteIcon })
+                    .bindPopup(`
+                        <strong>${site.name}</strong><br>
+                        ID: ${site.id}<br>
+                        Location: ${site.location.lat.toFixed(4)}, ${site.location.lng.toFixed(4)}
+                    `)
+                    .addTo(map);
+                
+                marker.markerType = 'site';
+                siteMarkers.push(marker);
+            });
+        }
+
+        function updateNFOList() {
+            const container = document.getElementById('nfoListContainer');
+            const onShift = nfoData.filter(n => n.onShift).slice(0, 10);
+            
+            if (onShift.length === 0) {
+                container.innerHTML = '<p style="color: var(--color-text-secondary); text-align: center;">No NFOs on shift</p>';
+                return;
+            }
+
+            container.innerHTML = onShift.map(nfo => {
+                const nearestSite = findNearestSite(nfo.location);
+                const distance = nearestSite ? calculateDistance(nfo.location, nearestSite.location).toFixed(2) : 'N/A';
+                
+                return `
+                    <div class="nfo-item">
+                        <div class="nfo-item-info">
+                            <div class="nfo-name">
+                                <span class="status-indicator ${nfo.status}"></span>
+                                ${nfo.name} (${nfo.id})
+                            </div>
+                            <div class="nfo-details">
+                                ${nfo.siteId ? `Site: ${nfo.siteId} | ` : ''}
+                                ${nfo.activity ? `Activity: ${nfo.activity} | ` : ''}
+                                Distance to nearest site: ${distance} km
+                            </div>
+                        </div>
+                        <span style="font-size: 12px; color: var(--color-text-secondary);">
+                            ${nfo.status === 'busy' ? '🔴 Busy' : '🟢 Free'}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateStats() {
+            const onShift = nfoData.filter(n => n.onShift).length;
+            const busy = nfoData.filter(n => n.status === 'busy' && n.onShift).length;
+
+            document.getElementById('onShiftNFOs').textContent = onShift;
+            document.getElementById('busyNFOs').textContent = busy;
+        }
+
+        function filterMap(type) {
+            currentMapFilter = type;
+            
+            // Update active button
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            // Show/hide markers based on filter
+            nfoMarkers.forEach(marker => {
+                const nfo = marker.nfoData;
+                let show = false;
+
+                switch(type) {
+                    case 'all':
+                        show = true;
+                        break;
+                    case 'nfo':
+                        show = true;
+                        break;
+                    case 'busy':
+                        show = nfo.status === 'busy' && nfo.onShift;
+                        break;
+                    case 'free':
+                        show = nfo.status === 'free' && nfo.onShift;
+                        break;
+                }
+
+                if (show) {
+                    marker.addTo(map);
+                } else {
+                    map.removeLayer(marker);
+                }
+            });
+
+            siteMarkers.forEach(marker => {
+                if (type === 'all' || type === 'sites') {
+                    marker.addTo(map);
+                } else {
+                    map.removeLayer(marker);
+                }
+            });
+        }
+
+        function findNearestSite(nfoLocation) {
+            let nearest = null;
+            let minDistance = Infinity;
+
+            siteData.forEach(site => {
+                const distance = calculateDistance(nfoLocation, site.location);
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    nearest = site;
+                }
+            });
+
+            return nearest;
+        }
+
+        function calculateDistance(loc1, loc2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = (loc2.lat - loc1.lat) * Math.PI / 180;
+            const dLng = (loc2.lng - loc1.lng) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(loc1.lat * Math.PI / 180) * Math.cos(loc2.lat * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Super Admin Functions
+        function initSuperAdminDashboard() {
+            updateUserLists();
+        }
+
+        function parseCSV(text) {
+            const lines = text.trim().split('\n');
+            return lines.map(line => {
+                // Simple CSV parsing - handles basic cases
+                const values = line.split(',').map(v => v.trim());
+                return values;
+            });
+        }
+
+        function uploadNFOUsers() {
+            const fileInput = document.getElementById('nfoCSVUpload');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a CSV file first!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const rows = parseCSV(text);
+                
+                nfoUsers = [];
+                rows.forEach(row => {
+                    if (row.length >= 2 && row[0] && row[1]) {
+                        nfoUsers.push({
+                            username: row[0],
+                            password: row[1]
+                        });
+                    }
+                });
+                
+                // Regenerate NFO data with new users
+                initializeNFOData();
+                
+                updateUserLists();
+                alert(`Successfully uploaded ${nfoUsers.length} NFO users!\n\nTotal NFOs available: ${nfoData.length}`);
+                fileInput.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function uploadMgmtUsers() {
+            const fileInput = document.getElementById('mgmtCSVUpload');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a CSV file first!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const text = e.target.result;
+                const rows = parseCSV(text);
+                
+                mgmtUsers = [];
+                rows.forEach(row => {
+                    if (row.length >= 2 && row[0] && row[1]) {
+                        mgmtUsers.push({
+                            username: row[0],
+                            password: row[1]
+                        });
+                    }
+                });
+                
+                updateUserLists();
+                alert(`Successfully uploaded ${mgmtUsers.length} management users!`);
+                fileInput.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        function uploadSites() {
+            const fileInput = document.getElementById('siteCSVUpload');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a CSV file first!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                let text = e.target.result;
+                
+                // Remove BOM if present
+                if (text.charCodeAt(0) === 0xFEFF) {
+                    text = text.slice(1);
+                }
+                
+                // Split by any line break format
+                const lines = text.split(/\r\n|\r|\n/);
+                
+                // Clear existing sites
+                siteData.length = 0;
+                
+                let processedCount = 0;
+                
+                // Process all lines (skip header at index 0)
+                for (let i = 1; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    
+                    // Skip empty lines
+                    if (!line || line.length === 0) continue;
+                    
+                    // Count this row
+                    processedCount++;
+                    
+                    // Split by comma
+                    const values = line.split(',');
+                    
+                    if (values.length >= 2) {
+                        const siteId = values[0].trim();
+                        const siteName = values[1].trim() || 'Unknown';
+                        let lat = 24.7136; // Default Riyadh coordinates
+                        let lng = 46.6753;
+                        
+                        // Try to parse coordinates, use defaults if invalid
+                        if (values.length >= 4) {
+                            const parsedLat = parseFloat(values[2].trim());
+                            const parsedLng = parseFloat(values[3].trim());
+                            
+                            if (!isNaN(parsedLat) && !isNaN(parsedLng) && parsedLat !== 0 && parsedLng !== 0 && parsedLat !== parsedLng) {
+                                lat = parsedLat;
+                                lng = parsedLng;
+                            }
+                        }
+                        
+                        // Add ALL sites - even those with invalid coords
+                        if (siteId) {
+                            siteData.push({
+                                id: siteId,
+                                name: siteName,
+                                location: { lat, lng }
+                            });
+                        }
+                    }
+                }
+                
+                // Update UI with actual count
+                document.getElementById('adminTotalSites').textContent = siteData.length;
+                document.getElementById('totalSites').textContent = siteData.length;
+                document.getElementById('sitesLastUpdated').textContent = new Date().toLocaleString();
+                
+                console.log(`Processed ${processedCount} sites from ${lines.length - 1} data lines`);
+                alert(`Successfully uploaded ${siteData.length} sites! These will be shown on the management map.`);
+                fileInput.value = '';
+            };
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        function downloadSiteTemplate() {
+            const csvContent = 'site_id,site_name,latitude,longitude\nSITE-0001,Riyadh Tower 1,24.7136,46.6753\nSITE-0002,Jeddah Station,21.4225,39.8262\nSITE-0003,Dammam Hub,26.4207,50.0888';
+            
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            
+            link.href = url;
+            link.download = 'site_template.csv';
+            link.style.display = 'none';
+            
+            document.body.appendChild(link);
+            link.click();
+            
+            // Clean up
+            setTimeout(() => {
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            }, 100);
+            
+            alert('CSV template downloaded successfully!');
+        }
+
+        function viewSitesPreview() {
+            if (siteData.length === 0) {
+                alert('No sites uploaded yet! Please upload a CSV file first.');
+                return;
+            }
+            
+            // Show preview information with more details
+            const sampleSites = siteData.slice(0, 10);
+            let previewMessage = `✓ SUCCESSFULLY LOADED ${siteData.length} SITES\n\n`;
+            previewMessage += '═══════════════════════════════════\n';
+            previewMessage += 'First 10 sites preview:\n';
+            previewMessage += '═══════════════════════════════════\n\n';
+            
+            sampleSites.forEach((site, index) => {
+                previewMessage += `${index + 1}. ${site.id} - ${site.name}\n`;
+                previewMessage += `   📍 Coordinates: ${site.location.lat}, ${site.location.lng}\n\n`;
+            });
+            
+            previewMessage += '═══════════════════════════════════\n';
+            previewMessage += `All ${siteData.length} sites are ready and will be\n`;
+            previewMessage += 'displayed on the Management Dashboard map.\n\n';
+            previewMessage += 'You can now login as Management to view them!';
+            
+            alert(previewMessage);
+        }
+
+        function updateUserLists() {
+            // Update NFO user list
+            const nfoListDiv = document.getElementById('nfoUserList');
+            document.getElementById('nfoUserCount').textContent = nfoUsers.length;
+            
+            if (nfoUsers.length === 0) {
+                nfoListDiv.innerHTML = '<p style="color: var(--color-text-secondary);">No NFO users uploaded</p>';
+            } else {
+                nfoListDiv.innerHTML = nfoUsers.map((user, index) => 
+                    `<div style="padding: 8px; border-bottom: 1px solid var(--color-border);">
+                        ${index + 1}. ${user.username}
+                    </div>`
+                ).join('');
+            }
+
+            // Update Management user list
+            const mgmtListDiv = document.getElementById('mgmtUserList');
+            document.getElementById('mgmtUserCount').textContent = mgmtUsers.length;
+            
+            if (mgmtUsers.length === 0) {
+                mgmtListDiv.innerHTML = '<p style="color: var(--color-text-secondary);">No management users uploaded</p>';
+            } else {
+                mgmtListDiv.innerHTML = mgmtUsers.map((user, index) => 
+                    `<div style="padding: 8px; border-bottom: 1px solid var(--color-border);">
+                        ${index + 1}. ${user.username}
+                    </div>`
+                ).join('');
+            }
+        }
+
+        function logout() {
+            if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+            }
+            currentUser = null;
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('nfoDashboard').classList.add('hidden');
+            document.getElementById('managementDashboard').classList.add('hidden');
+            document.getElementById('superAdminDashboard').classList.add('hidden');
+            document.getElementById('loginForm').reset();
+        }
+    </script>
+</body>
+</html>

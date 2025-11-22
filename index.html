@@ -482,6 +482,20 @@
                 </div>
             </div>
 
+            <div class="site-search-panel" style="background: var(--card-bg); border: 1px solid #e5e7eb; border-radius: 16px; padding: 16px; margin: 16px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
+                <h3 style="margin-top: 0;">Find nearest NFO to a site</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+                    <input id="searchSiteId" type="text" placeholder="Enter Site ID (e.g. W5234 or SITE-0001)" style="flex: 1 1 200px; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 12px; font-size: 14px;">
+                    <select id="searchNfoStatus" style="padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 12px; font-size: 14px;">
+                        <option value="any">any</option>
+                        <option value="busy only">busy only</option>
+                        <option value="free only">free only</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="findNearestNfosForSite()">Find nearest NFO</button>
+                </div>
+                <div id="siteSearchResults" style="margin-top: 10px; font-size: 14px; color: var(--color-text-secondary);"></div>
+            </div>
+
             <div class="management-dashboard">
                 <div class="map-container">
                     <div class="map-controls">
@@ -509,6 +523,9 @@
         const SUPABASE_URL = "https://rzivbeaqfhamlpsfaqov.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_Kifo4X6qxs6nkv7yilHRkA_7RapeV4a";  // sb_publishable_...
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const ORS_API_URL = "https://api.openrouteservice.org/v2/directions/driving-car";
+        const ORS_API_KEY = "YOUR_ORS_API_KEY_HERE"; // TODO: replace locally, do not commit a real key in public repos
 
         let currentUser = null;
         let map = null;
@@ -620,6 +637,68 @@
             return location && Number.isFinite(location.lat) && Number.isFinite(location.lng);
         }
 
+        async function fetchRoadRoute(nfoLocation, siteLocation) {
+            if (!hasValidLocation(nfoLocation) || !hasValidLocation(siteLocation)) {
+                throw new Error('Missing locations for ORS');
+            }
+
+            const body = {
+                coordinates: [
+                    [nfoLocation.lng, nfoLocation.lat],
+                    [siteLocation.lng, siteLocation.lat]
+                ]
+            };
+
+            const response = await fetch(ORS_API_URL, {
+                method: 'POST',
+                headers: {
+                    'Authorization': ORS_API_KEY,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                throw new Error('ORS request failed: ' + response.status);
+            }
+
+            const json = await response.json();
+            const summary = json?.features?.[0]?.properties?.summary;
+            if (!summary) {
+                throw new Error('ORS summary missing');
+            }
+
+            const distanceKm = (summary.distance || 0) / 1000;
+            const etaMinutes = (summary.duration || 0) / 60;
+            return { distanceKm, etaMinutes };
+        }
+
+        async function updateBusyNfoRouteInfo(nfo) {
+            if (!nfo || nfo.status !== 'busy' || !nfo.siteId) {
+                nfo && (nfo.routeInfo = null);
+                return;
+            }
+
+            const activeSite = getSiteById(nfo.siteId);
+            if (!activeSite || !hasValidLocation(nfo.location) || !hasValidLocation(activeSite.location) || activeSite.isDefaultLocation) {
+                nfo.routeInfo = null;
+                return;
+            }
+
+            try {
+                const { distanceKm, etaMinutes } = await fetchRoadRoute(nfo.location, activeSite.location);
+                nfo.routeInfo = {
+                    siteId: activeSite.id,
+                    siteName: activeSite.name || '',
+                    distanceKm,
+                    etaMinutes
+                };
+            } catch (err) {
+                console.error('ORS route error for NFO', nfo?.id, err);
+                nfo.routeInfo = null;
+            }
+        }
+
         function loadUsersFromText(text, fallback) {
             const rows = parseCSV(text, { skipHeader: true });
             const users = rows
@@ -704,6 +783,7 @@
 
         async function loadAllNfosFromSupabase() {
             try {
+                const previousById = new Map(nfoData.map(nfo => [nfo.id, nfo]));
                 const { data, error } = await supabase.from('nfo_status').select('*');
 
                 if (error) {
@@ -713,20 +793,46 @@
 
                 if (!data) return;
 
-                nfoData = data.map(row => ({
-                    id: row.id,
-                    name: row.name || row.id,
-                    onShift: !!row.on_shift,
-                    status: row.status || 'free',
-                    activity: row.activity || '',
-                    siteId: row.site_id || '',
-                    workOrderId: row.work_order_id || '',
-                    location: (row.lat != null && row.lng != null)
-                        ? { lat: row.lat, lng: row.lng }
-                        : null
-                }));
+                nfoData = data.map(row => {
+                    const previous = previousById.get(row.id);
+                    return {
+                        id: row.id,
+                        name: row.name || row.id,
+                        onShift: !!row.on_shift,
+                        status: row.status || 'free',
+                        activity: row.activity || '',
+                        siteId: row.site_id || '',
+                        workOrderId: row.work_order_id || '',
+                        location: (row.lat != null && row.lng != null)
+                            ? { lat: row.lat, lng: row.lng }
+                            : null,
+                        routeInfo: previous?.routeInfo || null
+                    };
+                });
 
                 document.getElementById('totalNFOs').textContent = nfoData.length;
+
+                await Promise.all(nfoData.map(async nfo => {
+                    if (!(nfo.onShift && nfo.status === 'busy')) {
+                        nfo.routeInfo = null;
+                        return;
+                    }
+
+                    const previous = previousById.get(nfo.id);
+                    const sameCoords = previous?.location
+                        && hasValidLocation(previous.location)
+                        && hasValidLocation(nfo.location)
+                        && previous.location.lat === nfo.location.lat
+                        && previous.location.lng === nfo.location.lng;
+                    const sameSite = previous?.siteId === nfo.siteId;
+
+                    if (sameCoords && sameSite && previous?.routeInfo) {
+                        nfo.routeInfo = previous.routeInfo;
+                        return;
+                    }
+
+                    await updateBusyNfoRouteInfo(nfo);
+                }));
 
                 updateStats();
                 updateNFOList();
@@ -752,7 +858,8 @@
                     activity: saved?.activity || null,
                     siteId: saved?.siteId || null,
                     workOrderId: saved?.workOrderId || null,
-                    location: hasValidLocation(saved?.location) ? saved.location : null
+                    location: hasValidLocation(saved?.location) ? saved.location : null,
+                    routeInfo: saved?.routeInfo || null
                 });
             });
 
@@ -919,6 +1026,9 @@
                             `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
 
                         nfo.location = { lat, lng };
+                        if (nfo.status === 'busy' && nfo.siteId) {
+                            await updateBusyNfoRouteInfo(nfo);
+                        }
                         persistNFOState();
                         refreshManagementViews();
                         await saveNfoStatusToSupabase(nfo);
@@ -926,6 +1036,7 @@
                     (error) => {
                         if (error.code === error.PERMISSION_DENIED) {
                             nfo.location = null;
+                            nfo.routeInfo = null;
                             document.getElementById('displayLocation').textContent =
                                 'Location permission denied – please allow location access for this app.';
                             persistNFOState();
@@ -936,6 +1047,7 @@
                         const savedLocation = hasValidLocation(nfo.location) ? nfo.location : null;
                         if (!savedLocation) {
                             nfo.location = null;
+                            nfo.routeInfo = null;
                         }
 
                         document.getElementById('displayLocation').textContent =
@@ -1021,6 +1133,9 @@
             persistNFOState();
             refreshManagementViews();
             await saveNfoStatusToSupabase(nfo);
+            await updateBusyNfoRouteInfo(nfo);
+            persistNFOState();
+            refreshManagementViews();
 
             alert('Activity updated successfully!');
         }
@@ -1035,6 +1150,7 @@
             nfo.workOrderId = null;
             nfo.activity = null;
             nfo.status = 'free';
+            nfo.routeInfo = null;
 
             document.getElementById('siteId').value = '';
             document.getElementById('workOrderId').value = '';
@@ -1129,19 +1245,49 @@
 
             container.innerHTML = onShift.map(nfo => {
                 const nearestSite = findNearestSite(nfo.location);
-                let distanceLabel = 'Distance to nearest site: N/A (no GPS)';
+                let nearestLabel = 'Nearest site: N/A (no GPS or site coordinates)';
+                let distanceLabel = 'Distance to nearest site: N/A (no GPS or site coordinates)';
+                let freeLabel = '';
+                let routeLabel = '';
 
-                if (hasValidLocation(nfo.location)) {
-                    if (!nearestSite) {
-                        distanceLabel = 'Distance to nearest site: N/A (missing site coordinates)';
-                    } else if (nearestSite.isDefaultLocation) {
-                        distanceLabel = 'Distance to nearest site: N/A (missing site coordinates)';
-                    } else {
-                        const distance = calculateDistance(nfo.location, nearestSite.location).toFixed(2);
-                        distanceLabel = `Distance to nearest site: ${distance} km`;
+                if (hasValidLocation(nfo.location) && nearestSite && !nearestSite.isDefaultLocation) {
+                    const distanceValue = calculateDistance(nfo.location, nearestSite.location);
+                    const distanceText = distanceValue > 200
+                        ? '>200 km (check site GPS or NFO GPS)'
+                        : `${distanceValue.toFixed(2)} km`;
+
+                    nearestLabel = `Nearest site: ${nearestSite.id} | ${nearestSite.name} | Distance: ${distanceText}`;
+                    distanceLabel = `Distance to nearest site: ${distanceText}`;
+
+                    if (nfo.status === 'free' && nfo.onShift) {
+                        freeLabel = `Free near site: ${nearestSite.id} | Distance: ${distanceText}`;
                     }
                 }
-                
+
+                if (nfo.status === 'busy' && nfo.onShift) {
+                    if (nfo.routeInfo) {
+                        const distanceValue = nfo.routeInfo.distanceKm;
+                        const etaValue = nfo.routeInfo.etaMinutes;
+                        const etaRounded = etaValue != null ? Math.max(1, Math.round(etaValue)) : null;
+                        const distanceText = distanceValue != null ? `${distanceValue.toFixed(2)} km` : 'N/A';
+                        const etaText = etaRounded != null ? `${etaRounded} min` : 'N/A';
+                        routeLabel = `Road distance to ${nfo.routeInfo.siteId}: ${distanceText} | ETA: ${etaText} (ORS)`;
+                    } else {
+                        routeLabel = 'Road distance to active site: N/A (no GPS or ORS error)';
+                    }
+                }
+
+                const detailLines = [];
+                const busyParts = [];
+                if (nfo.siteId) busyParts.push(`Site: ${nfo.siteId}`);
+                if (nfo.activity) busyParts.push(`Activity: ${nfo.activity}`);
+                if (busyParts.length) detailLines.push(busyParts.join(' | '));
+                if (routeLabel) detailLines.push(routeLabel);
+                detailLines.push(nearestLabel);
+                detailLines.push(distanceLabel);
+                if (freeLabel) detailLines.push(freeLabel);
+                const detailText = detailLines.map(line => `<div>${line}</div>`).join('');
+
                 return `
                     <div class="nfo-item">
                         <div class="nfo-item-info">
@@ -1150,9 +1296,7 @@
                                 ${nfo.name} (${nfo.id})
                             </div>
                             <div class="nfo-details">
-                                ${nfo.siteId ? `Site: ${nfo.siteId} | ` : ''}
-                                ${nfo.activity ? `Activity: ${nfo.activity} | ` : ''}
-                                ${distanceLabel}
+                                ${detailText}
                             </div>
                         </div>
                         <span style="font-size: 12px; color: var(--color-text-secondary);">
@@ -1234,6 +1378,12 @@
             refreshNfoMarkers();
         }
 
+        function getSiteById(siteId) {
+            if (!siteId) return null;
+            const normalizedId = siteId.trim().toLowerCase();
+            return siteData.find(site => (site.id || '').toLowerCase() === normalizedId) || null;
+        }
+
         function findNearestSite(nfoLocation) {
             if (!hasValidLocation(nfoLocation)) {
                 return null;
@@ -1252,6 +1402,72 @@
             });
 
             return nearest;
+        }
+
+        function findNearestNfosForSite() {
+            const siteIdInput = document.getElementById('searchSiteId');
+            const statusSelect = document.getElementById('searchNfoStatus');
+            const resultsEl = document.getElementById('siteSearchResults');
+
+            if (!siteIdInput || !statusSelect || !resultsEl) return;
+
+            const siteId = siteIdInput.value.trim();
+            const filter = statusSelect.value;
+
+            if (!siteId) {
+                resultsEl.textContent = 'Please enter a site ID to search.';
+                return;
+            }
+
+            const site = getSiteById(siteId);
+            if (!site) {
+                resultsEl.textContent = `Site ${siteId} not found.`;
+                return;
+            }
+
+            if (!hasValidLocation(site.location) || site.isDefaultLocation) {
+                resultsEl.textContent = `Site ${site.id} is missing valid coordinates.`;
+                return;
+            }
+
+            const candidates = nfoData.filter(nfo => {
+                if (!nfo.onShift || !hasValidLocation(nfo.location)) return false;
+                if (filter === 'busy only') return nfo.status === 'busy';
+                if (filter === 'free only') return nfo.status === 'free';
+                return true;
+            });
+
+            const ranked = candidates
+                .map(nfo => ({ nfo, distance: calculateDistance(nfo.location, site.location) }))
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, 3);
+
+            if (!ranked.length) {
+                resultsEl.textContent = 'No on-shift NFOs with GPS for this filter.';
+                return;
+            }
+
+            const listItems = ranked.map((entry, index) => {
+                const statusLabel = entry.nfo.status === 'busy' ? 'Busy' : 'Free';
+                const currentSite = entry.nfo.siteId || 'none';
+                return `${index + 1}) ${entry.nfo.name} (${entry.nfo.id}) – ${entry.distance.toFixed(2)} km – status: ${statusLabel} – current site: ${currentSite}`;
+            }).join('<br>');
+
+            resultsEl.innerHTML = `
+                <strong>Nearest NFOs to ${site.id} (${site.name}):</strong><br>
+                ${listItems}
+            `;
+
+            if (map && hasValidLocation(site.location)) {
+                map.setView([site.location.lat, site.location.lng], 12);
+            }
+
+            if (ranked[0]) {
+                const nearestMarker = nfoMarkers.find(marker => marker.nfoData && marker.nfoData.id === ranked[0].nfo.id);
+                if (nearestMarker) {
+                    nearestMarker.openPopup();
+                }
+            }
         }
 
         function calculateDistance(loc1, loc2) {

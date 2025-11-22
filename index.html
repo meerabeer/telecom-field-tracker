@@ -503,10 +503,12 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         // App State
         const SUPABASE_URL = "https://rzivbeaqfhamlpsfaqov.supabase.co";
         const SUPABASE_ANON_KEY = "sb_publishable_Kifo4X6qxs6nkv7yilHRkA_7RapeV4a";  // sb_publishable_...
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let currentUser = null;
         let map = null;
@@ -676,6 +678,27 @@
                 localStorage.setItem('nfoState', JSON.stringify(nfoData));
             } catch (err) {
                 console.warn('Unable to persist NFO state', err);
+            }
+        }
+
+        async function saveNfoStatusToSupabase(nfo) {
+            if (!nfo) return;
+
+            const payload = {
+                id: nfo.id,
+                name: nfo.name,
+                on_shift: !!nfo.onShift,
+                status: nfo.status || 'free',
+                activity: nfo.activity || null,
+                site_id: nfo.siteId || null,
+                work_order_id: nfo.workOrderId || null,
+                lat: nfo.location?.lat ?? null,
+                lng: nfo.location?.lng ?? null
+            };
+
+            const { error } = await supabase.from('nfo_status').upsert(payload);
+            if (error) {
+                console.error('Failed to save NFO status to Supabase', error);
             }
         }
 
@@ -855,7 +878,7 @@
 
             if ("geolocation" in navigator) {
                 watchId = navigator.geolocation.watchPosition(
-                    (position) => {
+                    async (position) => {
                         const lat = position.coords.latitude;
                         const lng = position.coords.longitude;
                         document.getElementById('displayLocation').textContent =
@@ -864,6 +887,7 @@
                         nfo.location = { lat, lng };
                         persistNFOState();
                         refreshManagementViews();
+                        await saveNfoStatusToSupabase(nfo);
                     },
                     (error) => {
                         if (error.code === error.PERMISSION_DENIED) {
@@ -896,7 +920,7 @@
             }
         }
 
-        function toggleShift() {
+        async function toggleShift() {
             const btn = document.getElementById('shiftToggleBtn');
             const badge = document.getElementById('shiftStatus');
             const statusText = document.getElementById('activityStatus');
@@ -925,9 +949,10 @@
 
             persistNFOState();
             refreshManagementViews();
+            await saveNfoStatusToSupabase(nfo);
         }
 
-        function updateActivity() {
+        async function updateActivity() {
             const siteId = document.getElementById('siteId').value;
             const workOrderId = document.getElementById('workOrderId').value;
             const activityType = document.getElementById('activityType').value;
@@ -961,11 +986,12 @@
 
             persistNFOState();
             refreshManagementViews();
+            await saveNfoStatusToSupabase(nfo);
 
             alert('Activity updated successfully!');
         }
 
-        function clearActivity() {
+        async function clearActivity() {
             const nfo = nfoData.find(n => n.id === currentUser.id);
             if (!nfo) {
                 alert("Current NFO not found in nfoData");
@@ -989,6 +1015,7 @@
 
             persistNFOState();
             refreshManagementViews();
+            await saveNfoStatusToSupabase(nfo);
         }
 
         // Management Dashboard Functions

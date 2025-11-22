@@ -507,14 +507,19 @@
             </div>
 
                 <div class="management-dashboard">
-                <div class="map-container">
-                    <div class="map-controls">
-                        <button class="filter-btn active" onclick="filterMap('all', this)">All</button>
-                        <button class="filter-btn" onclick="filterMap('nfo', this)">NFOs Only</button>
-                        <button class="filter-btn" onclick="filterMap('sites', this)">Sites Only</button>
-                        <button class="filter-btn" onclick="filterMap('busy', this)">Busy NFOs</button>
-                        <button class="filter-btn" onclick="filterMap('free', this)">Free NFOs</button>
-                    </div>
+                    <div class="map-container">
+                        <div class="map-controls">
+                            <button class="filter-btn active" onclick="filterMap('all', this)">All</button>
+                            <button class="filter-btn" onclick="filterMap('nfo', this)">NFOs Only</button>
+                            <button class="filter-btn" onclick="filterMap('sites', this)">Sites Only</button>
+                            <button class="filter-btn" onclick="filterMap('busy', this)">Busy NFOs</button>
+                            <button class="filter-btn" onclick="filterMap('free', this)">Free NFOs</button>
+                            <select id="loginFilter" style="margin-left: 8px; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 12px;">
+                                <option value="all" selected>All NFOs</option>
+                                <option value="logged-in">Logged in only</option>
+                                <option value="logged-out">Logged out only</option>
+                            </select>
+                        </div>
                     <div id="areaLegend" style="display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0; font-size: 12px; color: var(--color-text-secondary);"></div>
                     <div id="map"></div>
                 </div>
@@ -554,22 +559,23 @@
         let selectedNfoId = null;
         let watchId = null;
         let currentMapFilter = 'all';
+        let currentLoginFilter = 'all';
 
         let nfoUsers = [];
         let mgmtUsers = [];
 
         const nfoIcon = L.divIcon({
-            html: '<div style="background: #2563eb; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+            html: '<div style="background: #2563eb; width: 26px; height: 26px; border-radius: 6px; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.35);"></div>',
             className: 'custom-marker',
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
+            iconSize: [26, 26],
+            iconAnchor: [13, 13]
         });
 
         const nfoBusyIcon = L.divIcon({
-            html: '<div style="background: #dc2626; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+            html: '<div style="background: #dc2626; width: 26px; height: 26px; border-radius: 6px; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.35);"></div>',
             className: 'custom-marker',
-            iconSize: [24, 24],
-            iconAnchor: [12, 12]
+            iconSize: [26, 26],
+            iconAnchor: [13, 13]
         });
 
         function getAreaColor(area, hasCoords) {
@@ -613,8 +619,8 @@
         }
 
         const DEFAULT_NFO_USERS = [
-            { username: 'nfo1', password: 'password' },
-            { username: 'nfo2', password: 'password' }
+            { username: 'nfo1', password: 'password', fullName: 'nfo1' },
+            { username: 'nfo2', password: 'password', fullName: 'nfo2' }
         ];
 
         const DEFAULT_MGMT_USERS = [
@@ -691,17 +697,24 @@
         }
 
         function dedupeUsers(users) {
-            const seen = new Set();
-            const unique = [];
+            const byUsername = new Map();
 
             users.forEach(user => {
                 const key = (user.username || '').toLowerCase();
-                if (!key || seen.has(key)) return;
-                seen.add(key);
-                unique.push(user);
+                if (!key) return;
+
+                const existing = byUsername.get(key);
+                if (!existing) {
+                    byUsername.set(key, { ...user });
+                    return;
+                }
+
+                if (!existing.fullName && user.fullName) {
+                    existing.fullName = user.fullName;
+                }
             });
 
-            return unique;
+            return Array.from(byUsername.values());
         }
 
         function getCurrentNfo() {
@@ -851,7 +864,11 @@
             const rows = parseCSV(text, { skipHeader: true });
             const users = rows
                 .filter(row => row.length >= 2 && row[0] && row[1])
-                .map(row => ({ username: row[0], password: row[1] }));
+                .map(row => ({
+                    username: row[0],
+                    password: row[1],
+                    fullName: row[2] || row[0]
+                }));
 
             const result = users.length ? users : fallback;
             return dedupeUsers(result);
@@ -923,7 +940,8 @@
                 site_id: nfo.siteId || null,
                 work_order_id: nfo.workOrderId || null,
                 lat: nfo.location?.lat ?? null,
-                lng: nfo.location?.lng ?? null
+                lng: nfo.location?.lng ?? null,
+                logged_in: !!nfo.loggedIn
             };
 
             const { error } = await supabase.from('nfo_status').upsert(payload);
@@ -962,6 +980,9 @@
                     merged.activity = row.activity ?? previous?.activity ?? '';
                     merged.siteId = row.site_id ?? previous?.siteId ?? '';
                     merged.workOrderId = row.work_order_id ?? previous?.workOrderId ?? '';
+                    merged.loggedIn = row.logged_in !== undefined && row.logged_in !== null
+                        ? !!row.logged_in
+                        : (previous?.loggedIn ?? false);
                     merged.location = supLocation
                         ? supLocation
                         : (hasValidLocation(previous?.location) ? previous.location : null);
@@ -977,11 +998,13 @@
                             || (hasValidLocation(previous.location) && hasValidLocation(merged.location)
                                 && (previous.location.lat !== merged.location.lat || previous.location.lng !== merged.location.lng));
                         if (
+                            previous.name !== merged.name ||
                             previous.onShift !== merged.onShift ||
                             previous.status !== merged.status ||
                             previous.activity !== merged.activity ||
                             previous.siteId !== merged.siteId ||
                             previous.workOrderId !== merged.workOrderId ||
+                            previous.loggedIn !== merged.loggedIn ||
                             locationsChanged
                         ) {
                             changed = true;
@@ -998,6 +1021,7 @@
                 }
 
                 nfoData = updatedNfoData;
+                persistNFOState();
 
                 document.getElementById('totalNFOs').textContent = nfoData.length;
 
@@ -1019,14 +1043,15 @@
                 const saved = savedState?.find(entry => entry.id === user.username);
                 nfoData.push({
                     id: user.username,
-                    name: `Engineer ${index + 1}`,
+                    name: user.fullName || user.username || `Engineer ${index + 1}`,
                     onShift: saved?.onShift || false,
                     status: saved?.status || 'free',
                     activity: saved?.activity || null,
                     siteId: saved?.siteId || null,
                     workOrderId: saved?.workOrderId || null,
                     location: hasValidLocation(saved?.location) ? saved.location : null,
-                    routeInfo: saved?.routeInfo || null
+                    routeInfo: saved?.routeInfo || null,
+                    loggedIn: saved?.loggedIn || false
                 });
             });
 
@@ -1084,6 +1109,12 @@
                 document.getElementById('loginScreen').classList.add('hidden');
 
                 if (parsed.type === 'nfo') {
+                    const nfo = nfoData.find(n => n.id === parsed.username);
+                    if (nfo && !nfo.loggedIn) {
+                        nfo.loggedIn = true;
+                        await saveNfoStatusToSupabase(nfo);
+                        persistNFOState();
+                    }
                     document.getElementById('nfoDashboard').classList.remove('hidden');
                     document.getElementById('nfoUserName').textContent = parsed.username;
                     initNFODashboard();
@@ -1132,6 +1163,12 @@
             document.getElementById('loginScreen').classList.add('hidden');
 
             if (userType === 'nfo') {
+                const nfo = nfoData.find(n => n.id === username);
+                if (nfo) {
+                    nfo.loggedIn = true;
+                    await saveNfoStatusToSupabase(nfo);
+                    persistNFOState();
+                }
                 document.getElementById('nfoDashboard').classList.remove('hidden');
                 document.getElementById('nfoUserName').textContent = username;
                 initNFODashboard();
@@ -1349,6 +1386,14 @@
             initMap();
             initNfoSearch();
             initSearchPanel();
+            const loginFilterEl = document.getElementById('loginFilter');
+            if (loginFilterEl) {
+                loginFilterEl.addEventListener('change', (event) => {
+                    currentLoginFilter = event.target.value || 'all';
+                    applyMapFilter();
+                    updateNFOList();
+                });
+            }
             renderNfoSearchResults();
             updateNFOList();
             updateStats();
@@ -1413,6 +1458,17 @@
 
             const activeRouteIds = new Set();
 
+            renderAreaLegend();
+        }
+
+        function refreshNfoMarkers() {
+            if (!map) return;
+
+            nfoMarkers.forEach(marker => map.removeLayer(marker));
+            nfoMarkers = [];
+
+            const activeRouteIds = new Set();
+
             nfoData.forEach(nfo => {
                 if (!hasValidLocation(nfo.location)) return;
 
@@ -1422,6 +1478,7 @@
                         <strong>${nfo.name}</strong><br>
                         ID: ${nfo.id}<br>
                         Status: ${nfo.onShift ? (nfo.status === 'busy' ? 'Busy' : 'Available') : 'Off Shift'}<br>
+                        Login: ${nfo.loggedIn ? 'Logged in' : 'Logged out'}<br>
                         ${nfo.siteId ? `Site: ${nfo.siteId}<br>` : ''}
                         ${nfo.activity ? `Activity: ${nfo.activity}` : ''}
                     `)
@@ -1444,7 +1501,6 @@
             });
 
             applyMapFilter();
-            refreshNfoConnections();
         }
 
         function refreshNfoConnections() {
@@ -1454,6 +1510,7 @@
             nfoConnectionLines = [];
 
             nfoData.forEach(nfo => {
+                if (!nfoPassesMapFilters(nfo)) return;
                 if (!nfo.siteId) return;
                 const site = getSiteById(nfo.siteId);
                 if (!site) return;
@@ -1479,6 +1536,8 @@
             let distanceLabel = 'Nearest site: N/A (no GPS or missing coordinates)';
             let freeLabel = '';
             let routeLabel = '';
+            const loginLabel = nfo.loggedIn ? 'Logged in' : 'Logged out';
+            const loginBadge = `<span style="margin-left: 8px; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: ${nfo.loggedIn ? '#dcfce7' : '#e5e7eb'}; color: ${nfo.loggedIn ? '#16a34a' : '#475569'};">${loginLabel}</span>`;
 
             if (nfo.status === 'busy' && nfo.siteId) {
                 const targetSite = getSiteById(nfo.siteId);
@@ -1543,6 +1602,7 @@
             detailLines.push(nearestLabel);
             detailLines.push(distanceLabel);
             if (freeLabel) detailLines.push(freeLabel);
+            detailLines.unshift(`<div>Login status: ${loginLabel}</div>`);
             const detailText = detailLines.map(line => `<div>${line}</div>`).join('');
 
             const hasRoute = !!nfo.routeInfo;
@@ -1550,14 +1610,14 @@
             const hideRouteButton = hasRoute ? `<button class="hide-route-btn" data-nfo-id="${nfo.id}" style="margin-left: 8px;">Hide Route</button>` : '';
 
             return `
-                <div class="nfo-item" data-nfo-id="${nfo.id}">
-                    <div class="nfo-item-info">
-                        <div class="nfo-name">
-                            <span class="status-indicator ${nfo.status}"></span>
-                            ${nfo.name} (${nfo.id})
-                        </div>
-                        <div class="nfo-details">
-                            ${detailText}
+                    <div class="nfo-item" data-nfo-id="${nfo.id}">
+                        <div class="nfo-item-info">
+                            <div class="nfo-name">
+                                <span class="status-indicator ${nfo.status}"></span>
+                                ${nfo.name} (${nfo.id}) ${loginBadge}
+                            </div>
+                            <div class="nfo-details">
+                                ${detailText}
                             <div style="margin-top: 8px;">
                                 ${etaButton}
                                 ${hideRouteButton}
@@ -1565,7 +1625,7 @@
                         </div>
                     </div>
                     <span style="font-size: 12px; color: var(--color-text-secondary);">
-                        ${nfo.status === 'busy' ? '🔴 Busy' : '🟢 Free'}
+                        ${nfo.status === 'busy' ? '🔴 Busy' : '🟢 Free'} | ${loginLabel}
                     </span>
                 </div>
             `;
@@ -1675,7 +1735,14 @@
 
         function updateNFOList() {
             const container = document.getElementById('nfoListContainer');
-            const onShift = nfoData.filter(n => n.onShift);
+            const filterStatus = currentMapFilter;
+            const onShift = nfoData.filter(n => {
+                if (!n.onShift) return false;
+                if (!passesLoginFilter(n)) return false;
+                if (filterStatus === 'busy' && n.status !== 'busy') return false;
+                if (filterStatus === 'free' && n.status !== 'free') return false;
+                return true;
+            });
 
             renderNfoCards(onShift, container, 'No NFOs on shift');
         }
@@ -1714,6 +1781,27 @@
             document.getElementById('busyNFOs').textContent = busy;
         }
 
+        function passesLoginFilter(nfo) {
+            if (currentLoginFilter === 'logged-in') return !!nfo.loggedIn;
+            if (currentLoginFilter === 'logged-out') return !nfo.loggedIn;
+            return true;
+        }
+
+        function nfoPassesMapFilters(nfo) {
+            if (!passesLoginFilter(nfo)) return false;
+
+            switch(currentMapFilter) {
+                case 'busy':
+                    return nfo.status === 'busy' && nfo.onShift;
+                case 'free':
+                    return nfo.status === 'free' && nfo.onShift;
+                case 'sites':
+                    return false;
+                default:
+                    return true;
+            }
+        }
+
         function filterMap(type, button) {
             currentMapFilter = type;
 
@@ -1731,25 +1819,8 @@
             // Show/hide markers based on filter
             nfoMarkers.forEach(marker => {
                 const nfo = marker.nfoData;
-                let show = false;
-
-                switch(currentMapFilter) {
-                    case 'all':
-                        show = true;
-                        break;
-                    case 'nfo':
-                        show = true;
-                        break;
-                    case 'busy':
-                        show = nfo.status === 'busy' && nfo.onShift;
-                        break;
-                    case 'free':
-                        show = nfo.status === 'free' && nfo.onShift;
-                        break;
-                    case 'sites':
-                        show = false;
-                        break;
-                }
+                let show = nfoPassesMapFilters(nfo);
+                if (currentMapFilter === 'nfo') show = passesLoginFilter(nfo);
 
                 if (show) {
                     marker.addTo(map);
@@ -1758,13 +1829,39 @@
                 }
             });
 
+            const busySiteIds = new Set(
+                nfoData
+                    .filter(nfo => nfo.status === 'busy' && nfo.siteId && nfo.onShift && passesLoginFilter(nfo))
+                    .map(nfo => nfo.siteId.toLowerCase())
+            );
+
             siteMarkers.forEach(marker => {
-                if (currentMapFilter === 'all' || currentMapFilter === 'sites') {
+                const markerId = marker.siteId?.toLowerCase();
+                const keepForBusy = currentMapFilter === 'busy' && markerId && busySiteIds.has(markerId);
+                if (currentMapFilter === 'all' || currentMapFilter === 'sites' || keepForBusy) {
                     marker.addTo(map);
                 } else {
                     map.removeLayer(marker);
                 }
             });
+
+            refreshNfoConnections();
+        }
+
+        function refreshManagementViews() {
+            if (document.getElementById('managementDashboard').classList.contains('hidden')) {
+                return;
+            }
+
+            updateStats();
+            updateNFOList();
+            refreshNfoMarkers();
+        }
+
+        function getSiteById(siteId) {
+            if (!siteId) return null;
+            const id = siteId.trim().toLowerCase();
+            return siteData.find(s => s.id && s.id.trim().toLowerCase() === id) || null;
         }
 
         function refreshManagementViews() {
@@ -1892,7 +1989,8 @@
                 const statusLabel = entry.nfo.status === 'busy' ? 'Busy' : 'Free';
                 const statusEmoji = entry.nfo.status === 'busy' ? '🔴' : '🟢';
                 const currentSite = entry.nfo.siteId || 'none';
-                return `<li class="dispatch-item" data-nfo-id="${entry.nfo.id}">${index + 1}) ${entry.nfo.name} (${entry.nfo.id}) – ${entry.distance.toFixed(2)} km – status: ${statusEmoji} ${statusLabel} – current site: ${currentSite}</li>`;
+                const loginLabel = entry.nfo.loggedIn ? 'Logged in' : 'Logged out';
+                return `<li class="dispatch-item" data-nfo-id="${entry.nfo.id}">${index + 1}) ${entry.nfo.name} (${entry.nfo.id}) – ${entry.distance.toFixed(2)} km – status: ${statusEmoji} ${statusLabel} – ${loginLabel} – current site: ${currentSite}</li>`;
             }).join('');
 
             resultsEl.innerHTML = `
@@ -1952,10 +2050,20 @@
             return R * c;
         }
 
-        function logout() {
+        async function logout() {
             if (watchId) {
                 navigator.geolocation.clearWatch(watchId);
             }
+
+            if (currentUser?.type === 'nfo') {
+                const nfo = nfoData.find(n => n.id === currentUser.username);
+                if (nfo) {
+                    nfo.loggedIn = false;
+                    await saveNfoStatusToSupabase(nfo);
+                    persistNFOState();
+                }
+            }
+
             currentUser = null;
             localStorage.removeItem('currentUser');
             document.getElementById('loginScreen').classList.remove('hidden');

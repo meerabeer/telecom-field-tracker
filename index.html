@@ -485,11 +485,11 @@
             <div class="management-dashboard">
                 <div class="map-container">
                     <div class="map-controls">
-                        <button class="filter-btn active" onclick="filterMap('all')">All</button>
-                        <button class="filter-btn" onclick="filterMap('nfo')">NFOs Only</button>
-                        <button class="filter-btn" onclick="filterMap('sites')">Sites Only</button>
-                        <button class="filter-btn" onclick="filterMap('busy')">Busy NFOs</button>
-                        <button class="filter-btn" onclick="filterMap('free')">Free NFOs</button>
+                        <button class="filter-btn active" onclick="filterMap('all', this)">All</button>
+                        <button class="filter-btn" onclick="filterMap('nfo', this)">NFOs Only</button>
+                        <button class="filter-btn" onclick="filterMap('sites', this)">Sites Only</button>
+                        <button class="filter-btn" onclick="filterMap('busy', this)">Busy NFOs</button>
+                        <button class="filter-btn" onclick="filterMap('free', this)">Free NFOs</button>
                     </div>
                     <div id="map"></div>
                 </div>
@@ -515,6 +515,27 @@
         let nfoUsers = [];
         let mgmtUsers = [];
 
+        const nfoIcon = L.divIcon({
+            html: '<div style="background: #2563eb; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+            className: 'custom-marker',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+
+        const nfoBusyIcon = L.divIcon({
+            html: '<div style="background: #dc2626; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+            className: 'custom-marker',
+            iconSize: [24, 24],
+            iconAnchor: [12, 12]
+        });
+
+        const siteIcon = L.divIcon({
+            html: '<div style="background: #ea580c; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"></div>',
+            className: 'custom-marker',
+            iconSize: [12, 12],
+            iconAnchor: [6, 6]
+        });
+
         const DEFAULT_NFO_USERS = [
             { username: 'nfo1', password: 'password' },
             { username: 'nfo2', password: 'password' }
@@ -529,6 +550,7 @@
 
         // Site data - will be populated from CSV files
         const siteData = [];
+        const DEFAULT_COORDINATES = { lat: 24.7136, lng: 46.6753 };
 
         const DEFAULT_SITES = [
             { id: 'SITE-0001', name: 'Riyadh Tower 1', location: { lat: 24.7136, lng: 46.6753 } },
@@ -561,62 +583,102 @@
             }
         }
 
+        function dedupeUsers(users) {
+            const seen = new Set();
+            const unique = [];
+
+            users.forEach(user => {
+                const key = (user.username || '').toLowerCase();
+                if (!key || seen.has(key)) return;
+                seen.add(key);
+                unique.push(user);
+            });
+
+            return unique;
+        }
+
         function loadUsersFromText(text, fallback) {
             const rows = parseCSV(text, { skipHeader: true });
             const users = rows
                 .filter(row => row.length >= 2 && row[0] && row[1])
                 .map(row => ({ username: row[0], password: row[1] }));
 
-            return users.length ? users : fallback;
+            const result = users.length ? users : fallback;
+            return dedupeUsers(result);
         }
 
         function loadSitesFromText(text) {
             const rows = parseCSV(text, { skipHeader: true });
+            const seen = new Set();
             const sites = [];
 
             rows.forEach(row => {
-                if (row.length >= 4) {
+                if (row.length >= 1) {
                     const [siteId, siteName, latStr, lngStr] = row;
                     const lat = parseFloat(latStr);
                     const lng = parseFloat(lngStr);
+                    const hasValidCoords = Number.isFinite(lat) && Number.isFinite(lng);
 
-                    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-                        return;
-                    }
+                    const id = (siteId || 'SITE').trim();
+                    if (seen.has(id.toLowerCase())) return;
 
                     sites.push({
-                        id: siteId || 'SITE',
+                        id,
                         name: siteName || siteId || 'Unknown Site',
-                        location: { lat, lng }
+                        location: hasValidCoords ? { lat, lng } : { ...DEFAULT_COORDINATES }
                     });
+                    seen.add(id.toLowerCase());
                 }
             });
 
             return sites.length ? sites : DEFAULT_SITES;
         }
 
+        function loadPersistedNFOState() {
+            try {
+                const cached = localStorage.getItem('nfoState');
+                if (!cached) return null;
+                return JSON.parse(cached);
+            } catch (err) {
+                console.warn('Unable to read saved NFO state', err);
+                return null;
+            }
+        }
+
+        function persistNFOState() {
+            try {
+                localStorage.setItem('nfoState', JSON.stringify(nfoData));
+            } catch (err) {
+                console.warn('Unable to persist NFO state', err);
+            }
+        }
+
         // Function to initialize NFO data based on uploaded users
         function initializeNFOData() {
             nfoData.length = 0; // Clear existing
 
+            const savedState = loadPersistedNFOState();
+
             nfoUsers.forEach((user, index) => {
+                const saved = savedState?.find(entry => entry.id === user.username);
                 nfoData.push({
                     id: user.username,
                     name: `Engineer ${index + 1}`,
-                    onShift: false,
-                    status: 'free',
-                    activity: null,
-                    siteId: null,
-                    workOrderId: null,
-                    location: {
-                        lat: 24.7136 + (Math.random() - 0.5) * 0.5,
-                        lng: 46.6753 + (Math.random() - 0.5) * 0.5
+                    onShift: saved?.onShift || false,
+                    status: saved?.status || 'free',
+                    activity: saved?.activity || null,
+                    siteId: saved?.siteId || null,
+                    workOrderId: saved?.workOrderId || null,
+                    location: saved?.location || {
+                        lat: DEFAULT_COORDINATES.lat + (Math.random() - 0.5) * 0.5,
+                        lng: DEFAULT_COORDINATES.lng + (Math.random() - 0.5) * 0.5
                     }
                 });
             });
 
             // Update total NFOs count
             document.getElementById('totalNFOs').textContent = nfoData.length;
+            persistNFOState();
         }
 
         async function loadDataFromFiles() {
@@ -691,13 +753,15 @@
                     (position) => {
                         const lat = position.coords.latitude;
                         const lng = position.coords.longitude;
-                        document.getElementById('displayLocation').textContent = 
+                        document.getElementById('displayLocation').textContent =
                             `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
                         
                         // Update NFO location in demo data
                         const nfo = nfoData.find(n => n.id === currentUser.id);
                         if (nfo) {
                             nfo.location = { lat, lng };
+                            persistNFOState();
+                            refreshManagementViews();
                         }
                     },
                     (error) => {
@@ -739,6 +803,9 @@
                 statusText.textContent = 'Not on shift';
                 clearActivity();
             }
+
+            persistNFOState();
+            refreshManagementViews();
         }
 
         function updateActivity() {
@@ -765,9 +832,12 @@
 
             document.getElementById('displaySiteId').textContent = siteId;
             document.getElementById('displayWorkOrder').textContent = workOrderId;
-            document.getElementById('displayActivity').textContent = 
+            document.getElementById('displayActivity').textContent =
                 activityType.charAt(0).toUpperCase() + activityType.slice(1);
             document.getElementById('activityStatus').textContent = 'On shift - Busy';
+
+            persistNFOState();
+            refreshManagementViews();
 
             alert('Activity updated successfully!');
         }
@@ -785,10 +855,13 @@
             document.getElementById('displaySiteId').textContent = '-';
             document.getElementById('displayWorkOrder').textContent = '-';
             document.getElementById('displayActivity').textContent = '-';
-            
+
             if (nfo.onShift) {
                 document.getElementById('activityStatus').textContent = 'On shift - Available';
             }
+
+            persistNFOState();
+            refreshManagementViews();
         }
 
         // Management Dashboard Functions
@@ -813,29 +886,29 @@
                 attribution: '© OpenStreetMap contributors'
             }).addTo(map);
 
-            // Create custom icons
-            const nfoIcon = L.divIcon({
-                html: '<div style="background: #2563eb; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
-                className: 'custom-marker',
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
-            });
+            refreshNfoMarkers();
 
-            const nfoBusyIcon = L.divIcon({
-                html: '<div style="background: #dc2626; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
-                className: 'custom-marker',
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
-            });
+            // Add site markers (sample - showing 200 for performance)
+            siteData.slice(0, 200).forEach(site => {
+                const marker = L.marker([site.location.lat, site.location.lng], { icon: siteIcon })
+                    .bindPopup(`
+                        <strong>${site.name}</strong><br>
+                        ID: ${site.id}<br>
+                        Location: ${site.location.lat.toFixed(4)}, ${site.location.lng.toFixed(4)}
+                    `)
+                    .addTo(map);
 
-            const siteIcon = L.divIcon({
-                html: '<div style="background: #ea580c; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"></div>',
-                className: 'custom-marker',
-                iconSize: [12, 12],
-                iconAnchor: [6, 6]
+                marker.markerType = 'site';
+                siteMarkers.push(marker);
             });
+        }
 
-            // Add NFO markers
+        function refreshNfoMarkers() {
+            if (!map) return;
+
+            nfoMarkers.forEach(marker => map.removeLayer(marker));
+            nfoMarkers = [];
+
             nfoData.forEach(nfo => {
                 const icon = nfo.status === 'busy' ? nfoBusyIcon : nfoIcon;
                 const marker = L.marker([nfo.location.lat, nfo.location.lng], { icon })
@@ -847,25 +920,13 @@
                         ${nfo.activity ? `Activity: ${nfo.activity}` : ''}
                     `)
                     .addTo(map);
-                
+
                 marker.nfoData = nfo;
                 marker.markerType = 'nfo';
                 nfoMarkers.push(marker);
             });
 
-            // Add site markers (sample - showing 200 for performance)
-            siteData.slice(0, 200).forEach(site => {
-                const marker = L.marker([site.location.lat, site.location.lng], { icon: siteIcon })
-                    .bindPopup(`
-                        <strong>${site.name}</strong><br>
-                        ID: ${site.id}<br>
-                        Location: ${site.location.lat.toFixed(4)}, ${site.location.lng.toFixed(4)}
-                    `)
-                    .addTo(map);
-                
-                marker.markerType = 'site';
-                siteMarkers.push(marker);
-            });
+            applyMapFilter();
         }
 
         function updateNFOList() {
@@ -910,21 +971,26 @@
             document.getElementById('busyNFOs').textContent = busy;
         }
 
-        function filterMap(type) {
+        function filterMap(type, button) {
             currentMapFilter = type;
-            
-            // Update active button
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
 
+            if (button) {
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                button.classList.add('active');
+            }
+
+            applyMapFilter();
+        }
+
+        function applyMapFilter() {
             // Show/hide markers based on filter
             nfoMarkers.forEach(marker => {
                 const nfo = marker.nfoData;
                 let show = false;
 
-                switch(type) {
+                switch(currentMapFilter) {
                     case 'all':
                         show = true;
                         break;
@@ -937,6 +1003,9 @@
                     case 'free':
                         show = nfo.status === 'free' && nfo.onShift;
                         break;
+                    case 'sites':
+                        show = false;
+                        break;
                 }
 
                 if (show) {
@@ -947,12 +1016,22 @@
             });
 
             siteMarkers.forEach(marker => {
-                if (type === 'all' || type === 'sites') {
+                if (currentMapFilter === 'all' || currentMapFilter === 'sites') {
                     marker.addTo(map);
                 } else {
                     map.removeLayer(marker);
                 }
             });
+        }
+
+        function refreshManagementViews() {
+            if (document.getElementById('managementDashboard').classList.contains('hidden')) {
+                return;
+            }
+
+            updateStats();
+            updateNFOList();
+            refreshNfoMarkers();
         }
 
         function findNearestSite(nfoLocation) {

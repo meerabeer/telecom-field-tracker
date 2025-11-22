@@ -1237,30 +1237,45 @@
         function updateNFOList() {
             const container = document.getElementById('nfoListContainer');
             const onShift = nfoData.filter(n => n.onShift).slice(0, 10);
-            
+
             if (onShift.length === 0) {
                 container.innerHTML = '<p style="color: var(--color-text-secondary); text-align: center;">No NFOs on shift</p>';
                 return;
             }
 
             container.innerHTML = onShift.map(nfo => {
-                const nearestSite = findNearestSite(nfo.location);
                 let nearestLabel = 'Nearest site: N/A (no GPS or site coordinates)';
-                let distanceLabel = 'Distance to nearest site: N/A (no GPS or site coordinates)';
+                let distanceLabel = 'Nearest site: N/A (no GPS or missing coordinates)';
                 let freeLabel = '';
                 let routeLabel = '';
 
-                if (hasValidLocation(nfo.location) && nearestSite && !nearestSite.isDefaultLocation) {
-                    const distanceValue = calculateDistance(nfo.location, nearestSite.location);
-                    const distanceText = distanceValue > 200
-                        ? '>200 km (check site GPS or NFO GPS)'
-                        : `${distanceValue.toFixed(2)} km`;
+                if (nfo.status === 'busy' && nfo.siteId) {
+                    const targetSite = getSiteById(nfo.siteId);
+                    if (targetSite) {
+                        nearestLabel = `Active site: ${targetSite.id}${targetSite.name ? ' | ' + targetSite.name : ''}`;
+                    }
 
-                    nearestLabel = `Nearest site: ${nearestSite.id} | ${nearestSite.name} | Distance: ${distanceText}`;
-                    distanceLabel = `Distance to nearest site: ${distanceText}`;
+                    if (hasValidLocation(nfo.location) && targetSite && hasValidLocation(targetSite.location)) {
+                        const distanceValue = calculateDistance(nfo.location, targetSite.location);
+                        const distanceText = distanceValue.toFixed(2);
+                        distanceLabel = `Distance to active site ${targetSite.id}: ${distanceText} km`;
+                    } else {
+                        distanceLabel = 'Distance to active site: N/A (missing GPS or site coordinates)';
+                    }
+                } else {
+                    const nearestSite = findNearestSite(nfo.location);
+                    if (hasValidLocation(nfo.location) && nearestSite && hasValidLocation(nearestSite.location) && !nearestSite.isDefaultLocation) {
+                        const distanceValue = calculateDistance(nfo.location, nearestSite.location);
+                        const distanceText = distanceValue > 200
+                            ? '>200 km (check site GPS or NFO GPS)'
+                            : `${distanceValue.toFixed(2)} km`;
 
-                    if (nfo.status === 'free' && nfo.onShift) {
-                        freeLabel = `Free near site: ${nearestSite.id} | Distance: ${distanceText}`;
+                        nearestLabel = `Nearest site: ${nearestSite.id} | ${nearestSite.name} | Distance: ${distanceText}`;
+                        distanceLabel = `Nearest site ${nearestSite.id}: ${distanceText}`;
+
+                        if (nfo.status === 'free' && nfo.onShift) {
+                            freeLabel = `Free near site: ${nearestSite.id} | Distance: ${distanceText}`;
+                        }
                     }
                 }
 
@@ -1380,8 +1395,8 @@
 
         function getSiteById(siteId) {
             if (!siteId) return null;
-            const normalizedId = siteId.trim().toLowerCase();
-            return siteData.find(site => (site.id || '').toLowerCase() === normalizedId) || null;
+            const id = siteId.trim().toLowerCase();
+            return siteData.find(s => s.id && s.id.trim().toLowerCase() === id) || null;
         }
 
         function findNearestSite(nfoLocation) {
@@ -1392,7 +1407,7 @@
             let minDistance = Infinity;
 
             siteData.forEach(site => {
-                if (!hasValidLocation(site.location)) return;
+                if (!hasValidLocation(site.location) || site.isDefaultLocation) return;
 
                 const distance = calculateDistance(nfoLocation, site.location);
                 if (distance < minDistance) {

@@ -553,9 +553,9 @@
         const DEFAULT_COORDINATES = { lat: 24.7136, lng: 46.6753 };
 
         const DEFAULT_SITES = [
-            { id: 'SITE-0001', name: 'Riyadh Tower 1', location: { lat: 24.7136, lng: 46.6753 } },
-            { id: 'SITE-0002', name: 'Jeddah Station', location: { lat: 21.4225, lng: 39.8262 } },
-            { id: 'SITE-0003', name: 'Dammam Hub', location: { lat: 26.4207, lng: 50.0888 } }
+            { id: 'SITE-0001', name: 'Riyadh Tower 1', location: { lat: 24.7136, lng: 46.6753 }, isDefaultLocation: false },
+            { id: 'SITE-0002', name: 'Jeddah Station', location: { lat: 21.4225, lng: 39.8262 }, isDefaultLocation: false },
+            { id: 'SITE-0003', name: 'Dammam Hub', location: { lat: 26.4207, lng: 50.0888 }, isDefaultLocation: false }
         ];
 
         function parseCSV(text, { skipHeader = false } = {}) {
@@ -597,6 +597,19 @@
             return unique;
         }
 
+        function getCurrentNfo() {
+            const nfo = nfoData.find(n => n.id === currentUser?.id);
+            if (!nfo) {
+                alert('NFO profile not found. Please log in again.');
+                return null;
+            }
+            return nfo;
+        }
+
+        function hasValidLocation(location) {
+            return location && Number.isFinite(location.lat) && Number.isFinite(location.lng);
+        }
+
         function loadUsersFromText(text, fallback) {
             const rows = parseCSV(text, { skipHeader: true });
             const users = rows
@@ -625,13 +638,18 @@
                     sites.push({
                         id,
                         name: siteName || siteId || 'Unknown Site',
-                        location: hasValidCoords ? { lat, lng } : { ...DEFAULT_COORDINATES }
+                        location: hasValidCoords ? { lat, lng } : { ...DEFAULT_COORDINATES },
+                        isDefaultLocation: !hasValidCoords
                     });
                     seen.add(id.toLowerCase());
                 }
             });
 
-            return sites.length ? sites : DEFAULT_SITES;
+            if (sites.length) {
+                return sites;
+            }
+
+            return DEFAULT_SITES.map(site => ({ ...site, isDefaultLocation: !!site.isDefaultLocation }));
         }
 
         function loadPersistedNFOState() {
@@ -669,10 +687,7 @@
                     activity: saved?.activity || null,
                     siteId: saved?.siteId || null,
                     workOrderId: saved?.workOrderId || null,
-                    location: saved?.location || {
-                        lat: DEFAULT_COORDINATES.lat + (Math.random() - 0.5) * 0.5,
-                        lng: DEFAULT_COORDINATES.lng + (Math.random() - 0.5) * 0.5
-                    }
+                    location: hasValidLocation(saved?.location) ? saved.location : null
                 });
             });
 
@@ -700,6 +715,50 @@
         }
 
         const dataLoadPromise = loadDataFromFiles();
+
+        async function resumeSession() {
+            await dataLoadPromise;
+            const stored = localStorage.getItem('currentUser');
+            if (!stored) return;
+
+            try {
+                const parsed = JSON.parse(stored);
+                if (!parsed?.type || !parsed?.username) return;
+
+                if (parsed.type === 'nfo' && !parsed.id) {
+                    parsed.id = parsed.username;
+                } else if (parsed.type === 'management' && !parsed.id) {
+                    parsed.id = 'MGMT-001';
+                }
+
+                if (parsed.type === 'nfo' && !nfoUsers.some(user => user.username === parsed.username)) {
+                    localStorage.removeItem('currentUser');
+                    return;
+                }
+
+                if (parsed.type === 'management' && !mgmtUsers.some(user => user.username === parsed.username)) {
+                    localStorage.removeItem('currentUser');
+                    return;
+                }
+
+                currentUser = parsed;
+                document.getElementById('loginScreen').classList.add('hidden');
+
+                if (parsed.type === 'nfo') {
+                    document.getElementById('nfoDashboard').classList.remove('hidden');
+                    document.getElementById('nfoUserName').textContent = parsed.username;
+                    initNFODashboard();
+                } else if (parsed.type === 'management') {
+                    document.getElementById('managementDashboard').classList.remove('hidden');
+                    document.getElementById('mgmtUserName').textContent = parsed.username;
+                    initManagementDashboard();
+                }
+            } catch (err) {
+                console.warn('Unable to restore session', err);
+            }
+        }
+
+        dataLoadPromise.then(() => resumeSession());
 
         // Login handling
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
@@ -729,6 +788,8 @@
                 id: userType === 'nfo' ? username : 'MGMT-001'
             };
 
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
             document.getElementById('loginScreen').classList.add('hidden');
 
             if (userType === 'nfo') {
@@ -744,10 +805,46 @@
 
         // NFO Dashboard Functions
         function initNFODashboard() {
-            startLocationTracking();
+            const nfo = getCurrentNfo();
+            if (!nfo) return;
+
+            syncNfoUiState(nfo);
+            startLocationTracking(nfo);
         }
 
-        function startLocationTracking() {
+        function syncNfoUiState(nfo) {
+            const btn = document.getElementById('shiftToggleBtn');
+            const badge = document.getElementById('shiftStatus');
+            const statusText = document.getElementById('activityStatus');
+
+            if (nfo.onShift) {
+                btn.textContent = 'End Shift';
+                btn.className = 'btn btn-danger';
+                badge.textContent = 'On Shift';
+                badge.className = 'status-badge on-shift';
+                statusText.textContent = nfo.status === 'busy' ? 'On shift - Busy' : 'On shift - Available';
+            } else {
+                btn.textContent = 'Start Shift';
+                btn.className = 'btn btn-success';
+                badge.textContent = 'Off Shift';
+                badge.className = 'status-badge off-shift';
+                statusText.textContent = 'Not on shift';
+            }
+
+            document.getElementById('siteId').value = nfo.siteId || '';
+            document.getElementById('workOrderId').value = nfo.workOrderId || '';
+            document.getElementById('activityType').value = nfo.activity || '';
+            document.getElementById('displaySiteId').textContent = nfo.siteId || '-';
+            document.getElementById('displayWorkOrder').textContent = nfo.workOrderId || '-';
+            document.getElementById('displayActivity').textContent = nfo.activity
+                ? nfo.activity.charAt(0).toUpperCase() + nfo.activity.slice(1)
+                : '-';
+        }
+
+        function startLocationTracking(nfoOverride) {
+            const nfo = nfoOverride || getCurrentNfo();
+            if (!nfo) return;
+
             if ("geolocation" in navigator) {
                 watchId = navigator.geolocation.watchPosition(
                     (position) => {
@@ -755,28 +852,38 @@
                         const lng = position.coords.longitude;
                         document.getElementById('displayLocation').textContent =
                             `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-                        
-                        // Update NFO location in demo data
-                        const nfo = nfoData.find(n => n.id === currentUser.id);
-                        if (nfo) {
-                            nfo.location = { lat, lng };
-                            persistNFOState();
-                            refreshManagementViews();
-                        }
+
+                        nfo.location = { lat, lng };
+                        persistNFOState();
+                        refreshManagementViews();
                     },
                     (error) => {
-                        document.getElementById('displayLocation').textContent = 
-                            'Location unavailable (using demo location)';
-                        // Use demo location
-                        const demoLat = 24.7136 + Math.random() * 0.1;
-                        const demoLng = 46.6753 + Math.random() * 0.1;
-                        document.getElementById('displayLocation').textContent = 
-                            `${demoLat.toFixed(6)}, ${demoLng.toFixed(6)} (Demo)`;
+                        if (error.code === error.PERMISSION_DENIED) {
+                            nfo.location = null;
+                            document.getElementById('displayLocation').textContent =
+                                'Location permission denied – please allow location access for this app.';
+                            persistNFOState();
+                            refreshManagementViews();
+                            return;
+                        }
+
+                        const savedLocation = hasValidLocation(nfo.location) ? nfo.location : null;
+                        if (!savedLocation) {
+                            nfo.location = null;
+                        }
+
+                        document.getElementById('displayLocation').textContent =
+                            savedLocation
+                                ? `${savedLocation.lat.toFixed(6)}, ${savedLocation.lng.toFixed(6)} (Last known)`
+                                : 'Location unavailable – using last known location if available.';
+
+                        persistNFOState();
+                        refreshManagementViews();
                     },
                     { enableHighAccuracy: true, maximumAge: 10000 }
                 );
             } else {
-                document.getElementById('displayLocation').textContent = 
+                document.getElementById('displayLocation').textContent =
                     'Geolocation not supported';
             }
         }
@@ -785,8 +892,9 @@
             const btn = document.getElementById('shiftToggleBtn');
             const badge = document.getElementById('shiftStatus');
             const statusText = document.getElementById('activityStatus');
-            
-            const nfo = nfoData.find(n => n.id === currentUser.id) || nfoData[0];
+
+            const nfo = getCurrentNfo();
+            if (!nfo) return;
             nfo.onShift = !nfo.onShift;
 
             if (nfo.onShift) {
@@ -813,7 +921,8 @@
             const workOrderId = document.getElementById('workOrderId').value;
             const activityType = document.getElementById('activityType').value;
 
-            const nfo = nfoData.find(n => n.id === currentUser.id) || nfoData[0];
+            const nfo = getCurrentNfo();
+            if (!nfo) return;
             
             if (!nfo.onShift) {
                 alert('Please start your shift first!');
@@ -843,7 +952,8 @@
         }
 
         function clearActivity() {
-            const nfo = nfoData.find(n => n.id === currentUser.id) || nfoData[0];
+            const nfo = getCurrentNfo();
+            if (!nfo) return;
             nfo.siteId = null;
             nfo.workOrderId = null;
             nfo.activity = null;
@@ -910,6 +1020,8 @@
             nfoMarkers = [];
 
             nfoData.forEach(nfo => {
+                if (!hasValidLocation(nfo.location)) return;
+
                 const icon = nfo.status === 'busy' ? nfoBusyIcon : nfoIcon;
                 const marker = L.marker([nfo.location.lat, nfo.location.lng], { icon })
                     .bindPopup(`
@@ -940,7 +1052,18 @@
 
             container.innerHTML = onShift.map(nfo => {
                 const nearestSite = findNearestSite(nfo.location);
-                const distance = nearestSite ? calculateDistance(nfo.location, nearestSite.location).toFixed(2) : 'N/A';
+                let distanceLabel = 'Distance to nearest site: N/A (no GPS)';
+
+                if (hasValidLocation(nfo.location)) {
+                    if (!nearestSite) {
+                        distanceLabel = 'Distance to nearest site: N/A (missing site coordinates)';
+                    } else if (nearestSite.isDefaultLocation) {
+                        distanceLabel = 'Distance to nearest site: N/A (missing site coordinates)';
+                    } else {
+                        const distance = calculateDistance(nfo.location, nearestSite.location).toFixed(2);
+                        distanceLabel = `Distance to nearest site: ${distance} km`;
+                    }
+                }
                 
                 return `
                     <div class="nfo-item">
@@ -952,7 +1075,7 @@
                             <div class="nfo-details">
                                 ${nfo.siteId ? `Site: ${nfo.siteId} | ` : ''}
                                 ${nfo.activity ? `Activity: ${nfo.activity} | ` : ''}
-                                Distance to nearest site: ${distance} km
+                                ${distanceLabel}
                             </div>
                         </div>
                         <span style="font-size: 12px; color: var(--color-text-secondary);">
@@ -1035,10 +1158,15 @@
         }
 
         function findNearestSite(nfoLocation) {
+            if (!hasValidLocation(nfoLocation)) {
+                return null;
+            }
             let nearest = null;
             let minDistance = Infinity;
 
             siteData.forEach(site => {
+                if (!hasValidLocation(site.location)) return;
+
                 const distance = calculateDistance(nfoLocation, site.location);
                 if (distance < minDistance) {
                     minDistance = distance;
@@ -1065,6 +1193,7 @@
                 navigator.geolocation.clearWatch(watchId);
             }
             currentUser = null;
+            localStorage.removeItem('currentUser');
             document.getElementById('loginScreen').classList.remove('hidden');
             document.getElementById('nfoDashboard').classList.add('hidden');
             document.getElementById('managementDashboard').classList.add('hidden');

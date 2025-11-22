@@ -505,6 +505,9 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
         // App State
+        const SUPABASE_URL = "https://rzivbeaqfhamlpsfaqov.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_Kifo4X6qxs6nkv7yilHRkA_7RapeV4a";  // sb_publishable_...
+
         let currentUser = null;
         let map = null;
         let nfoMarkers = [];
@@ -598,7 +601,12 @@
         }
 
         function getCurrentNfo() {
-            const nfo = nfoData.find(n => n.id === currentUser?.id);
+            if (!currentUser || !currentUser.id) {
+                alert('NFO profile not found. Please log in again.');
+                return null;
+            }
+
+            const nfo = nfoData.find(n => n.id === currentUser.id);
             if (!nfo) {
                 alert('NFO profile not found. Please log in again.');
                 return null;

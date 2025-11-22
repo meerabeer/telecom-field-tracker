@@ -534,6 +534,7 @@
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const ORS_BACKEND_BASE_URL = "https://meerabeer1990-nfo-ors-backend.hf.space";
+        const NFO_REFRESH_INTERVAL_MS = 30000;
 
         let currentUser = null;
         let map = null;
@@ -822,24 +823,57 @@
                     return;
                 }
 
-                if (!data) return;
+                if (!data || data.length === 0) return;
 
-                nfoData = data.map(row => {
+                let changed = data.length !== nfoData.length;
+
+                const updatedNfoData = data.map(row => {
                     const previous = previousById.get(row.id);
-                    return {
-                        id: row.id,
-                        name: row.name || row.id,
-                        onShift: !!row.on_shift,
-                        status: row.status || 'free',
-                        activity: row.activity || '',
-                        siteId: row.site_id || '',
-                        workOrderId: row.work_order_id || '',
-                        location: (row.lat != null && row.lng != null)
-                            ? { lat: row.lat, lng: row.lng }
-                            : null,
-                        routeInfo: null
-                    };
+                    const supLocation = (row.lat != null && row.lng != null)
+                        ? { lat: row.lat, lng: row.lng }
+                        : null;
+
+                    const merged = previous ? { ...previous } : {};
+                    merged.id = row.id;
+                    merged.name = row.name || previous?.name || row.id;
+                    merged.onShift = row.on_shift !== undefined && row.on_shift !== null
+                        ? !!row.on_shift
+                        : (previous?.onShift ?? false);
+                    merged.status = row.status ?? previous?.status ?? 'free';
+                    merged.activity = row.activity ?? previous?.activity ?? '';
+                    merged.siteId = row.site_id ?? previous?.siteId ?? '';
+                    merged.workOrderId = row.work_order_id ?? previous?.workOrderId ?? '';
+                    merged.location = supLocation
+                        ? supLocation
+                        : (hasValidLocation(previous?.location) ? previous.location : null);
+                    merged.routeInfo = previous?.routeInfo ?? null;
+
+                    if (!changed && previous) {
+                        const locationsChanged = hasValidLocation(previous.location) !== hasValidLocation(merged.location)
+                            || (hasValidLocation(previous.location) && hasValidLocation(merged.location)
+                                && (previous.location.lat !== merged.location.lat || previous.location.lng !== merged.location.lng));
+                        if (
+                            previous.onShift !== merged.onShift ||
+                            previous.status !== merged.status ||
+                            previous.activity !== merged.activity ||
+                            previous.siteId !== merged.siteId ||
+                            previous.workOrderId !== merged.workOrderId ||
+                            locationsChanged
+                        ) {
+                            changed = true;
+                        }
+                    } else if (!previous) {
+                        changed = true;
+                    }
+
+                    return merged;
                 });
+
+                if (!changed) {
+                    return;
+                }
+
+                nfoData = updatedNfoData;
 
                 document.getElementById('totalNFOs').textContent = nfoData.length;
 
@@ -1182,7 +1216,7 @@
             updateStats();
 
             loadAllNfosFromSupabase();
-            setInterval(loadAllNfosFromSupabase, 10000);
+            setInterval(loadAllNfosFromSupabase, NFO_REFRESH_INTERVAL_MS);
         }
 
         function initMap() {
@@ -1389,7 +1423,8 @@
 
                     await updateBusyNfoRouteInfo(targetNfo);
                     persistNFOState();
-                    refreshManagementViews();
+                    refreshNfoMarkers();
+                    updateNFOList();
 
                     const marker = nfoMarkers.find(m => m.nfoData?.id === targetId);
                     if (marker && map) {
@@ -1620,6 +1655,17 @@
                     targetMarker.openPopup();
                 }
             }
+        }
+
+        function calculateDistance(loc1, loc2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = (loc2.lat - loc1.lat) * Math.PI / 180;
+            const dLng = (loc2.lng - loc1.lng) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(loc1.lat * Math.PI / 180) * Math.cos(loc2.lat * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
         }
 
         function calculateDistance(loc1, loc2) {

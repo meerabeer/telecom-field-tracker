@@ -1219,10 +1219,9 @@
                 isValid = mgmtUsers.some(user => user.username === username && user.password === password);
             }
 
-            if (!isValid) {
-                alert('Invalid username or password!');
-                return;
-            }
+            siteData.length = 0;
+            const sites = loadSitesFromText(siteText);
+            siteData.push(...sites);
 
             currentUser = {
                 type: userType,
@@ -1249,6 +1248,68 @@
                 document.getElementById('mgmtUserName').textContent = username;
                 initManagementDashboard();
             }
+        }
+
+        function setupLoginHandler() {
+            const form = document.getElementById('loginForm');
+            if (!form || form.__handlerAttached) return;
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await dataLoadPromise;
+                const userType = document.getElementById('userType').value;
+                const username = document.getElementById('username').value;
+                const password = document.getElementById('password').value;
+
+                // Validate credentials
+                let isValid = false;
+
+                if (userType === 'nfo') {
+                    isValid = nfoUsers.some(user => user.username === username && user.password === password);
+                } else if (userType === 'management') {
+                    isValid = mgmtUsers.some(user => user.username === username && user.password === password);
+                }
+
+                if (!isValid) {
+                    alert('Invalid username or password!');
+                    return;
+                }
+
+                currentUser = {
+                    type: userType,
+                    username: username,
+                    id: userType === 'nfo' ? username : 'MGMT-001'
+                };
+
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+                document.getElementById('loginScreen').classList.add('hidden');
+
+                if (userType === 'nfo') {
+                    const nfo = nfoData.find(n => n.id === username);
+                    if (nfo) {
+                        nfo.loggedIn = true;
+                        await markNfoPing(nfo);
+                        startNfoHeartbeat(nfo);
+                    }
+                    document.getElementById('nfoDashboard').classList.remove('hidden');
+                    document.getElementById('nfoUserName').textContent = username;
+                    initNFODashboard();
+                } else {
+                    document.getElementById('managementDashboard').classList.remove('hidden');
+                    document.getElementById('mgmtUserName').textContent = username;
+                    initManagementDashboard();
+                }
+            });
+
+            form.__handlerAttached = true;
+        }
+
+        // Ensure login handler is attached immediately and after data load
+        setupLoginHandler();
+        dataLoadPromise.then(() => {
+            setupLoginHandler();
+            resumeSession();
         });
 
         // NFO Dashboard Functions
@@ -1497,6 +1558,11 @@
         }
 
         function initMap() {
+            if (map) {
+                refreshNfoMarkers();
+                return map;
+            }
+
             map = L.map('map').setView([24.7136, 46.6753], 10);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {

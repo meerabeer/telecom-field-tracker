@@ -483,6 +483,14 @@
                     <div class="label">Busy</div>
                 </div>
                 <div class="stat-card">
+                    <div class="number" id="loggedInNFOs" style="color: var(--color-success);">0</div>
+                    <div class="label">Logged in NFOs (ping &lt; 1 min)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="loggedOutNFOs" style="color: var(--color-text-secondary);">0</div>
+                    <div class="label">Logged out / no ping (&gt;1 min)</div>
+                </div>
+                <div class="stat-card">
                     <div class="number" id="totalSites" style="color: var(--color-warning);">0</div>
                     <div class="label">Total Sites</div>
                 </div>
@@ -526,6 +534,11 @@
 
                 <div class="nfo-list">
                     <h3>Field Engineers Status</h3>
+                    <div class="tab-bar" style="display: flex; gap: 8px; margin-bottom: 10px;">
+                        <button class="filter-btn login-tab active" data-login-filter="all">All NFOs</button>
+                        <button class="filter-btn login-tab" data-login-filter="logged-in">Logged in NFOs</button>
+                        <button class="filter-btn login-tab" data-login-filter="logged-out">Logged out NFOs</button>
+                    </div>
                     <div id="nfoListContainer"></div>
                 </div>
             </div>
@@ -1053,6 +1066,10 @@
                     routeInfo: saved?.routeInfo || null,
                     loggedIn: saved?.loggedIn || false
                 });
+                const current = nfoData[nfoData.length - 1];
+                const parsedPing = current.lastPingMs ?? (current.lastPing ? Date.parse(current.lastPing) : null);
+                current.lastPingMs = Number.isFinite(parsedPing) ? parsedPing : null;
+                current.isOnline = !!(current.loggedIn && current.lastPingMs && (Date.now() - current.lastPingMs <= 60000));
             });
 
             // Update total NFOs count
@@ -1776,9 +1793,14 @@
         function updateStats() {
             const onShift = nfoData.filter(n => n.onShift).length;
             const busy = nfoData.filter(n => n.status === 'busy' && n.onShift).length;
+            const total = nfoData.length;
+            const online = nfoData.filter(n => n.isOnline).length;
+            const offline = total - online;
 
             document.getElementById('onShiftNFOs').textContent = onShift;
             document.getElementById('busyNFOs').textContent = busy;
+            document.getElementById('loggedInNFOs').textContent = online;
+            document.getElementById('loggedOutNFOs').textContent = offline;
         }
 
         function passesLoginFilter(nfo) {

@@ -1818,7 +1818,7 @@
                         [nfo.location.lat, nfo.location.lng],
                         [site.location.lat, site.location.lng]
                     ],
-                    { color: '#ccc', weight: isHighlighted ? 4 : 2, opacity: isHighlighted ? 0.9 : 0.6 }
+                    { color: '#facc15', weight: isHighlighted ? 6 : 4, opacity: isHighlighted ? 0.9 : 0.7 }
                 );
 
                 line.addTo(map);
@@ -2171,10 +2171,23 @@
                     .map(nfo => nfo.siteId.toLowerCase())
             );
 
+            const activeSiteIds = new Set(
+                nfoData
+                    .filter(nfo => nfo.siteId && nfoPassesMapFilters(nfo))
+                    .map(nfo => nfo.siteId.toLowerCase())
+            );
+
             siteMarkers.forEach(marker => {
                 const markerId = marker.siteId?.toLowerCase();
                 const keepForBusy = currentMapFilter === 'busy' && markerId && busySiteIds.has(markerId);
-                if (currentMapFilter === 'all' || currentMapFilter === 'sites' || keepForBusy) {
+                const keepForActiveNfo = markerId && activeSiteIds.has(markerId);
+
+                if (
+                    currentMapFilter === 'all' ||
+                    currentMapFilter === 'sites' ||
+                    keepForBusy ||
+                    keepForActiveNfo
+                ) {
                     marker.addTo(map);
                 } else {
                     map.removeLayer(marker);
@@ -2252,7 +2265,7 @@
                         [site.location.lat, site.location.lng],
                         [entry.nfo.location.lat, entry.nfo.location.lng]
                     ],
-                    { color: '#999', weight: 2, opacity: 0.7 }
+                    { color: '#facc15', weight: 4, opacity: 0.8 }
                 );
                 line.addTo(map);
                 dispatchLines.push(line);

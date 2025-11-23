@@ -2235,6 +2235,12 @@
                     .map(nfo => nfo.siteId.toLowerCase())
             );
 
+            const activeSiteIds = new Set(
+                nfoData
+                    .filter(nfo => nfo.siteId && nfoPassesMapFilters(nfo))
+                    .map(nfo => nfo.siteId.toLowerCase())
+            );
+
             siteMarkers.forEach(marker => {
                 const markerId = marker.siteId?.toLowerCase();
                 const keepForBusy = currentMapFilter === 'busy' && markerId && busySiteIds.has(markerId);

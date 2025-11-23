@@ -953,8 +953,8 @@
         async function saveNfoStatusToSupabase(nfo) {
             if (!nfo) return;
 
-            markNfoPing(nfo);
             const nowIso = new Date().toISOString();
+
             const payload = {
                 id: nfo.id,
                 name: nfo.name,
@@ -1026,7 +1026,7 @@
                         ? !!row.logged_in
                         : (merged.loggedIn ?? false);
 
-                    const lastPingStr = row.last_ping ?? merged.lastPing ?? previous?.lastPing ?? null;
+                    const lastPingStr = row.last_ping ?? previous?.lastPing ?? null;
                     let lastPingMs = null;
                     if (lastPingStr) {
                         const parsed = Date.parse(lastPingStr);
@@ -1502,13 +1502,23 @@
 
         function initLoginTabs() {
             const tabs = document.querySelectorAll('.login-tab');
+            if (!tabs.length) return;
+
             tabs.forEach(tab => {
                 tab.addEventListener('click', () => {
-                    const filter = tab.getAttribute('data-login-filter') || 'all';
-                    setLoginFilter(filter);
+                    const filter = tab.dataset.loginFilter || 'all';
+                    currentLoginFilter = filter;
+
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    updateNFOList();
+                    applyMapFilter();
                 });
             });
-            setLoginFilter(currentLoginFilter || 'all');
+
+            const active = Array.from(tabs).find(t => t.classList.contains('active'));
+            currentLoginFilter = active?.dataset.loginFilter || currentLoginFilter || 'all';
         }
 
         function initMap() {
@@ -1826,15 +1836,14 @@
         function updateNFOList() {
             const container = document.getElementById('nfoListContainer');
             const filterStatus = currentMapFilter;
-            const onShift = nfoData.filter(n => {
-                if (!n.onShift) return false;
+            const list = nfoData.filter(n => {
                 if (!passesLoginFilter(n)) return false;
                 if (filterStatus === 'busy' && n.status !== 'busy') return false;
                 if (filterStatus === 'free' && n.status !== 'free') return false;
                 return true;
             });
 
-            renderNfoCards(onShift, container, 'No NFOs on shift');
+            renderNfoCards(list, container, 'No NFOs found');
         }
 
         function renderNfoSearchResults() {

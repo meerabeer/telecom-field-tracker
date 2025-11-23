@@ -585,9 +585,6 @@
 
         const ORS_BACKEND_BASE_URL = "https://meerabeer1990-nfo-ors-backend.hf.space";
         const NFO_REFRESH_INTERVAL_MS = 30000;
-        // Activity window for considering an NFO online
-        const ACTIVE_WINDOW_MINUTES = 15;
-        const ACTIVE_WINDOW_MS = ACTIVE_WINDOW_MINUTES * 60 * 1000;
         const HEARTBEAT_INTERVAL_MS = 45000;      // 45 seconds heartbeat from NFO devices
         const AUTO_LOGOUT_MS = 10 * 60 * 1000;    // 10 minutes offline -> auto logout / clear shift
         const AREA_COLORS = {
@@ -798,7 +795,7 @@
                 }
 
                 // Heartbeat ping: keep last_ping fresh even if location does not move
-                markNfoPing(liveNfo, 'heartbeat');
+                markNfoPing(liveNfo);
                 await saveNfoStatusToSupabase(liveNfo);
             }, HEARTBEAT_INTERVAL_MS);
         }
@@ -1143,7 +1140,7 @@
                     merged.isOnline = isOnlineNow;
 
                     // Auto-logout / clear shift if NFO has been offline for a long time
-                    if (!isOnlineNow && merged.loggedIn && merged.lastActiveAtMs && (now - merged.lastActiveAtMs >= AUTO_LOGOUT_MS)) {
+                    if (!isOnlineNow && merged.loggedIn && merged.lastPingMs && (now - merged.lastPingMs >= AUTO_LOGOUT_MS)) {
                         merged.loggedIn = false;
                         merged.onShift = false;
                         merged.status = 'free';
@@ -1983,7 +1980,7 @@
         }
 
         function updateStats() {
-            // Only consider NFOs that are currently online (active within last 15 minutes)
+            // Only count NFOs that are actually online
             const onlineNfos = nfoData.filter(n => n.isOnline);
 
             const onShift = onlineNfos.filter(n => n.onShift).length;

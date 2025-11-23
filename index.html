@@ -1102,6 +1102,7 @@
         function initializeNFOData() {
             nfoData.length = 0; // Clear existing
             nfoUsers.forEach((user, index) => {
+                const saved = savedState?.find(entry => entry.id === user.username);
                 nfoData.push({
                     id: user.username,
                     name: user.fullName || user.username || `Engineer ${index + 1}`,
@@ -1117,10 +1118,15 @@
                     lastPingMs: null,
                     isOnline: false
                 });
+                const current = nfoData[nfoData.length - 1];
+                const parsedPing = current.lastPingMs ?? (current.lastPing ? Date.parse(current.lastPing) : null);
+                current.lastPingMs = Number.isFinite(parsedPing) ? parsedPing : null;
+                current.isOnline = !!(current.loggedIn && current.lastPingMs && (Date.now() - current.lastPingMs <= 60000));
             });
 
             // Update total NFOs count
             document.getElementById('totalNFOs').textContent = nfoData.length;
+            persistNFOState();
         }
 
         async function loadDataFromFiles() {
@@ -1191,6 +1197,56 @@
                 }
             } catch (err) {
                 console.warn('Unable to restore session', err);
+            }
+        }
+
+        dataLoadPromise.then(() => resumeSession());
+
+        // Login handling
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await dataLoadPromise;
+            const userType = document.getElementById('userType').value;
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            // Validate credentials
+            let isValid = false;
+
+            if (userType === 'nfo') {
+                isValid = nfoUsers.some(user => user.username === username && user.password === password);
+            } else if (userType === 'management') {
+                isValid = mgmtUsers.some(user => user.username === username && user.password === password);
+            }
+
+            siteData.length = 0;
+            const sites = loadSitesFromText(siteText);
+            siteData.push(...sites);
+
+            currentUser = {
+                type: userType,
+                username: username,
+                id: userType === 'nfo' ? username : 'MGMT-001'
+            };
+
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+            document.getElementById('loginScreen').classList.add('hidden');
+
+            if (userType === 'nfo') {
+                const nfo = nfoData.find(n => n.id === username);
+                if (nfo) {
+                    nfo.loggedIn = true;
+                    await markNfoPing(nfo);
+                    startNfoHeartbeat(nfo);
+                }
+                document.getElementById('nfoDashboard').classList.remove('hidden');
+                document.getElementById('nfoUserName').textContent = username;
+                initNFODashboard();
+            } else {
+                document.getElementById('managementDashboard').classList.remove('hidden');
+                document.getElementById('mgmtUserName').textContent = username;
+                initManagementDashboard();
             }
         }
 
@@ -1611,6 +1667,8 @@
                 line.addTo(map);
                 nfoConnectionLines.push(line);
             });
+
+            applyMapFilter();
         }
 
         function buildNfoCard(nfo) {
@@ -1903,7 +1961,7 @@
         function nfoPassesMapFilters(nfo) {
             if (!passesLoginFilter(nfo)) return false;
 
-            switch (currentMapFilter) {
+            switch(currentMapFilter) {
                 case 'busy':
                     return nfo.status === 'busy' && nfo.onShift;
                 case 'free':
@@ -1911,8 +1969,7 @@
                 case 'sites':
                     return false;
                 default:
-                    return true;
-            }
+            return true;
         }
 
         function setLoginFilter(filter) {
@@ -1928,6 +1985,7 @@
             applyMapFilter();
             updateNFOList();
             renderNfoSearchResults();
+        }
         }
 
         function filterMap(type, button) {
@@ -2049,6 +2107,11 @@
                 line.addTo(map);
                 dispatchLines.push(line);
             });
+
+            return candidates
+                .map(nfo => ({ nfo, distance: calculateDistance(nfo.location, site.location) }))
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, limit);
         }
 
         function runNfoSearch() {

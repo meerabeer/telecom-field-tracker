@@ -941,9 +941,20 @@
             }
         }
 
+        function markNfoPing(nfo) {
+            if (!nfo) return;
+            const now = Date.now();
+            const nowIso = new Date(now).toISOString();
+            nfo.lastPing = nowIso;
+            nfo.lastPingMs = now;
+            nfo.isOnline = !!(nfo.loggedIn && (Date.now() - nfo.lastPingMs <= 60000));
+        }
+
         async function saveNfoStatusToSupabase(nfo) {
             if (!nfo) return;
 
+            markNfoPing(nfo);
+            const nowIso = new Date().toISOString();
             const payload = {
                 id: nfo.id,
                 name: nfo.name,
@@ -954,7 +965,8 @@
                 work_order_id: nfo.workOrderId || null,
                 lat: nfo.location?.lat ?? null,
                 lng: nfo.location?.lng ?? null,
-                logged_in: !!nfo.loggedIn
+                logged_in: !!nfo.loggedIn,
+                last_ping: nowIso
             };
 
             const { error } = await supabase.from('nfo_status').upsert(payload);
@@ -973,63 +985,126 @@
                     return;
                 }
 
-                if (!data || data.length === 0) return;
+                const updatedMap = new Map(nfoData.map(nfo => [nfo.id, { ...nfo }]));
+                const now = Date.now();
+                let changed = false;
 
-                let changed = data.length !== nfoData.length;
-
-                const updatedNfoData = data.map(row => {
+                (data || []).forEach(row => {
+                    const existing = updatedMap.get(row.id);
                     const previous = previousById.get(row.id);
+                    const merged = existing ? { ...existing } : {
+                        id: row.id,
+                        name: row.name || row.id,
+                        onShift: false,
+                        status: 'free',
+                        activity: '',
+                        siteId: '',
+                        workOrderId: '',
+                        location: null,
+                        routeInfo: null,
+                        loggedIn: false,
+                        lastPing: null,
+                        lastPingMs: null,
+                        isOnline: false
+                    };
+
                     const supLocation = (row.lat != null && row.lng != null)
                         ? { lat: row.lat, lng: row.lng }
                         : null;
 
-                    const merged = previous ? { ...previous } : {};
-                    merged.id = row.id;
-                    merged.name = row.name || previous?.name || row.id;
+                    const previousLocation = merged.location ? { ...merged.location } : null;
+
+                    merged.name = row.name ?? merged.name ?? row.id;
                     merged.onShift = row.on_shift !== undefined && row.on_shift !== null
                         ? !!row.on_shift
-                        : (previous?.onShift ?? false);
-                    merged.status = row.status ?? previous?.status ?? 'free';
-                    merged.activity = row.activity ?? previous?.activity ?? '';
-                    merged.siteId = row.site_id ?? previous?.siteId ?? '';
-                    merged.workOrderId = row.work_order_id ?? previous?.workOrderId ?? '';
+                        : (merged.onShift ?? false);
+                    merged.status = row.status ?? merged.status ?? 'free';
+                    merged.activity = row.activity ?? merged.activity ?? '';
+                    merged.siteId = row.site_id ?? merged.siteId ?? '';
+                    merged.workOrderId = row.work_order_id ?? merged.workOrderId ?? '';
                     merged.loggedIn = row.logged_in !== undefined && row.logged_in !== null
                         ? !!row.logged_in
-                        : (previous?.loggedIn ?? false);
+                        : (merged.loggedIn ?? false);
+
+                    const lastPingStr = row.last_ping ?? merged.lastPing ?? previous?.lastPing ?? null;
+                    let lastPingMs = null;
+                    if (lastPingStr) {
+                        const parsed = Date.parse(lastPingStr);
+                        if (Number.isFinite(parsed)) {
+                            lastPingMs = parsed;
+                        }
+                    }
+
+                    merged.lastPing = lastPingStr;
+                    merged.lastPingMs = lastPingMs;
+
                     merged.location = supLocation
                         ? supLocation
-                        : (hasValidLocation(previous?.location) ? previous.location : null);
-                    const locationChangedForRoute = previous?.routeInfo && previous?.location && merged.location &&
-                        (previous.location.lat !== merged.location.lat || previous.location.lng !== merged.location.lng);
-                    merged.routeInfo = locationChangedForRoute ? null : (previous?.routeInfo ?? null);
-                    if (!hasValidLocation(merged.location)) {
+                        : (hasValidLocation(previousLocation) ? previousLocation : null);
+
+                    if (
+                        merged.routeInfo &&
+                        previous?.location &&
+                        merged.location &&
+                        (previous.location.lat !== merged.location.lat || previous.location.lng !== merged.location.lng)
+                    ) {
                         merged.routeInfo = null;
                     }
 
-                    if (!changed && previous) {
-                        const locationsChanged = hasValidLocation(previous.location) !== hasValidLocation(merged.location)
-                            || (hasValidLocation(previous.location) && hasValidLocation(merged.location)
-                                && (previous.location.lat !== merged.location.lat || previous.location.lng !== merged.location.lng));
-                        if (
-                            previous.name !== merged.name ||
-                            previous.onShift !== merged.onShift ||
-                            previous.status !== merged.status ||
-                            previous.activity !== merged.activity ||
-                            previous.siteId !== merged.siteId ||
-                            previous.workOrderId !== merged.workOrderId ||
-                            previous.loggedIn !== merged.loggedIn ||
-                            locationsChanged
-                        ) {
-                            changed = true;
-                        }
-                    } else if (!previous) {
+                    const isOnlineNow = !!(merged.loggedIn && merged.lastPingMs && (now - merged.lastPingMs <= 60000));
+                    merged.isOnline = isOnlineNow;
+
+                    updatedMap.set(row.id, merged);
+
+                    if (!previous) {
                         changed = true;
+                        return;
                     }
 
-                    return merged;
+                    const locationsChanged = hasValidLocation(previous.location) !== hasValidLocation(merged.location)
+                        || (hasValidLocation(previous.location) && hasValidLocation(merged.location)
+                            && (previous.location.lat !== merged.location.lat || previous.location.lng !== merged.location.lng));
+
+                    if (
+                        previous.name !== merged.name ||
+                        previous.onShift !== merged.onShift ||
+                        previous.status !== merged.status ||
+                        previous.activity !== merged.activity ||
+                        previous.siteId !== merged.siteId ||
+                        previous.workOrderId !== merged.workOrderId ||
+                        previous.loggedIn !== merged.loggedIn ||
+                        previous.isOnline !== merged.isOnline ||
+                        previous.lastPing !== merged.lastPing ||
+                        locationsChanged
+                    ) {
+                        changed = true;
+                    }
                 });
 
-                if (!changed) {
+                nfoUsers.forEach(user => {
+                    const id = user.username;
+                    if (!updatedMap.has(id)) {
+                        changed = true;
+                        updatedMap.set(id, {
+                            id,
+                            name: user.fullName || id,
+                            onShift: false,
+                            status: 'free',
+                            activity: null,
+                            siteId: null,
+                            workOrderId: null,
+                            location: { ...DEFAULT_COORDINATES },
+                            routeInfo: null,
+                            loggedIn: false,
+                            lastPing: null,
+                            lastPingMs: null,
+                            isOnline: false
+                        });
+                    }
+                });
+
+                const updatedNfoData = Array.from(updatedMap.values());
+                if (!changed && updatedNfoData.length === nfoData.length) {
                     return;
                 }
 
@@ -1064,7 +1139,10 @@
                     workOrderId: saved?.workOrderId || null,
                     location: hasValidLocation(saved?.location) ? saved.location : null,
                     routeInfo: saved?.routeInfo || null,
-                    loggedIn: saved?.loggedIn || false
+                    loggedIn: saved?.loggedIn || false,
+                    lastPing: saved?.lastPing || null,
+                    lastPingMs: saved?.lastPingMs || null,
+                    isOnline: false
                 });
                 const current = nfoData[nfoData.length - 1];
                 const parsedPing = current.lastPingMs ?? (current.lastPing ? Date.parse(current.lastPing) : null);
@@ -1253,6 +1331,7 @@
                             nfo.routeInfo = null;
                             removeRouteLayer(nfo.id);
                         }
+                        markNfoPing(nfo);
                         persistNFOState();
                         refreshManagementViews();
                         await saveNfoStatusToSupabase(nfo);
@@ -1319,6 +1398,7 @@
                 clearActivity();
             }
 
+            markNfoPing(nfo);
             persistNFOState();
             refreshManagementViews();
             await saveNfoStatusToSupabase(nfo);
@@ -1358,6 +1438,7 @@
                 activityType.charAt(0).toUpperCase() + activityType.slice(1);
             document.getElementById('activityStatus').textContent = 'On shift - Busy';
 
+            markNfoPing(nfo);
             persistNFOState();
             refreshManagementViews();
             await saveNfoStatusToSupabase(nfo);
@@ -1389,6 +1470,7 @@
                 document.getElementById('activityStatus').textContent = 'On shift - Available';
             }
 
+            markNfoPing(nfo);
             persistNFOState();
             refreshManagementViews();
             await saveNfoStatusToSupabase(nfo);
@@ -1406,17 +1488,27 @@
             const loginFilterEl = document.getElementById('loginFilter');
             if (loginFilterEl) {
                 loginFilterEl.addEventListener('change', (event) => {
-                    currentLoginFilter = event.target.value || 'all';
-                    applyMapFilter();
-                    updateNFOList();
+                    setLoginFilter(event.target.value || 'all');
                 });
             }
+            initLoginTabs();
             renderNfoSearchResults();
             updateNFOList();
             updateStats();
 
             loadAllNfosFromSupabase();
             setInterval(loadAllNfosFromSupabase, NFO_REFRESH_INTERVAL_MS);
+        }
+
+        function initLoginTabs() {
+            const tabs = document.querySelectorAll('.login-tab');
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const filter = tab.getAttribute('data-login-filter') || 'all';
+                    setLoginFilter(filter);
+                });
+            });
+            setLoginFilter(currentLoginFilter || 'all');
         }
 
         function initMap() {
@@ -1452,28 +1544,6 @@
                 marker.siteId = site.id;
                 siteMarkers.push(marker);
             });
-        }
-
-        function refreshNfoMarkers() {
-            if (!map) return;
-
-            nfoMarkers.forEach(marker => map.removeLayer(marker));
-            nfoMarkers = [];
-            nfoRouteLines.forEach(line => map.removeLayer(line));
-            nfoRouteLines = [];
-            nfoConnectionLines.forEach(line => map.removeLayer(line));
-            nfoConnectionLines = [];
-
-            renderAreaLegend();
-        }
-
-        function refreshNfoMarkers() {
-            if (!map) return;
-
-            nfoMarkers.forEach(marker => map.removeLayer(marker));
-            nfoMarkers = [];
-
-            const activeRouteIds = new Set();
 
             renderAreaLegend();
         }
@@ -1490,16 +1560,16 @@
                 if (!hasValidLocation(nfo.location)) return;
 
                 const icon = nfo.status === 'busy' ? nfoBusyIcon : nfoIcon;
-                const marker = L.marker([nfo.location.lat, nfo.location.lng], { icon })
-                    .bindPopup(`
-                        <strong>${nfo.name}</strong><br>
-                        ID: ${nfo.id}<br>
-                        Status: ${nfo.onShift ? (nfo.status === 'busy' ? 'Busy' : 'Available') : 'Off Shift'}<br>
-                        Login: ${nfo.loggedIn ? 'Logged in' : 'Logged out'}<br>
-                        ${nfo.siteId ? `Site: ${nfo.siteId}<br>` : ''}
-                        ${nfo.activity ? `Activity: ${nfo.activity}` : ''}
-                    `)
-                    .addTo(map);
+                  const marker = L.marker([nfo.location.lat, nfo.location.lng], { icon })
+                      .bindPopup(`
+                          <strong>${nfo.name}</strong><br>
+                          ID: ${nfo.id}<br>
+                          Status: ${nfo.onShift ? (nfo.status === 'busy' ? 'Busy' : 'Available') : 'Off Shift'}<br>
+                          Login: ${nfo.isOnline ? 'Online (ping < 1 min)' : 'Offline / no ping'}<br>
+                          ${nfo.siteId ? `Site: ${nfo.siteId}<br>` : ''}
+                          ${nfo.activity ? `Activity: ${nfo.activity}` : ''}
+                      `)
+                      .addTo(map);
 
                 marker.nfoData = nfo;
                 marker.markerType = 'nfo';
@@ -1553,8 +1623,11 @@
             let distanceLabel = 'Nearest site: N/A (no GPS or missing coordinates)';
             let freeLabel = '';
             let routeLabel = '';
-            const loginLabel = nfo.loggedIn ? 'Logged in' : 'Logged out';
-            const loginBadge = `<span style="margin-left: 8px; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: ${nfo.loggedIn ? '#dcfce7' : '#e5e7eb'}; color: ${nfo.loggedIn ? '#16a34a' : '#475569'};">${loginLabel}</span>`;
+            const isOnline = !!nfo.isOnline;
+            const loginLabel = isOnline
+                ? 'Online (ping < 1 min)'
+                : 'Offline / no ping';
+            const loginBadge = `<span style="margin-left: 8px; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: ${isOnline ? '#dcfce7' : '#e5e7eb'}; color: ${isOnline ? '#16a34a' : '#475569'};">${loginLabel}</span>`;
 
             if (nfo.status === 'busy' && nfo.siteId) {
                 const targetSite = getSiteById(nfo.siteId);
@@ -1778,7 +1851,7 @@
             const matches = nfoData.filter(nfo => {
                 return (nfo.name && nfo.name.toLowerCase().includes(query)) ||
                     (nfo.id && nfo.id.toLowerCase().includes(query));
-            });
+            }).filter(passesLoginFilter);
 
             renderNfoCards(matches, resultsEl, 'No matching NFOs found', { scrollToList: true });
         }
@@ -1804,8 +1877,8 @@
         }
 
         function passesLoginFilter(nfo) {
-            if (currentLoginFilter === 'logged-in') return !!nfo.loggedIn;
-            if (currentLoginFilter === 'logged-out') return !nfo.loggedIn;
+            if (currentLoginFilter === 'logged-in') return !!nfo.isOnline;
+            if (currentLoginFilter === 'logged-out') return !nfo.isOnline;
             return true;
         }
 
@@ -1820,8 +1893,23 @@
                 case 'sites':
                     return false;
                 default:
-                    return true;
+            return true;
+        }
+
+        function setLoginFilter(filter) {
+            currentLoginFilter = filter;
+            const loginFilterEl = document.getElementById('loginFilter');
+            if (loginFilterEl) {
+                loginFilterEl.value = filter;
             }
+            document.querySelectorAll('.login-tab').forEach(btn => {
+                const value = btn.getAttribute('data-login-filter');
+                btn.classList.toggle('active', value === filter);
+            });
+            applyMapFilter();
+            updateNFOList();
+            renderNfoSearchResults();
+        }
         }
 
         function filterMap(type, button) {
@@ -1868,22 +1956,6 @@
             });
 
             refreshNfoConnections();
-        }
-
-        function refreshManagementViews() {
-            if (document.getElementById('managementDashboard').classList.contains('hidden')) {
-                return;
-            }
-
-            updateStats();
-            updateNFOList();
-            refreshNfoMarkers();
-        }
-
-        function getSiteById(siteId) {
-            if (!siteId) return null;
-            const id = siteId.trim().toLowerCase();
-            return siteData.find(s => s.id && s.id.trim().toLowerCase() === id) || null;
         }
 
         function refreshManagementViews() {
@@ -2011,7 +2083,7 @@
                 const statusLabel = entry.nfo.status === 'busy' ? 'Busy' : 'Free';
                 const statusEmoji = entry.nfo.status === 'busy' ? '🔴' : '🟢';
                 const currentSite = entry.nfo.siteId || 'none';
-                const loginLabel = entry.nfo.loggedIn ? 'Logged in' : 'Logged out';
+                const loginLabel = entry.nfo.isOnline ? 'Online (ping < 1 min)' : 'Offline / no ping';
                 return `<li class="dispatch-item" data-nfo-id="${entry.nfo.id}">${index + 1}) ${entry.nfo.name} (${entry.nfo.id}) – ${entry.distance.toFixed(2)} km – status: ${statusEmoji} ${statusLabel} – ${loginLabel} – current site: ${currentSite}</li>`;
             }).join('');
 
@@ -2081,6 +2153,7 @@
                 const nfo = nfoData.find(n => n.id === currentUser.username);
                 if (nfo) {
                     nfo.loggedIn = false;
+                    nfo.isOnline = false;
                     await saveNfoStatusToSupabase(nfo);
                     persistNFOState();
                 }

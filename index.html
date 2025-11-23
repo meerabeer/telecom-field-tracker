@@ -2030,7 +2030,8 @@
                 case 'sites':
                     return false;
                 default:
-            return true;
+                    return true;
+            }
         }
 
         function setLoginFilter(filter) {
@@ -2046,7 +2047,6 @@
             applyMapFilter();
             updateNFOList();
             renderNfoSearchResults();
-        }
         }
 
         function filterMap(type, button) {

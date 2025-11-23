@@ -363,7 +363,6 @@
                         <option value="">Select User Type</option>
                         <option value="nfo">Network Field Officer (NFO)</option>
                         <option value="management">Management</option>
-                        <option value="superadmin">Super Admin</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -377,7 +376,7 @@
                 <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
             </form>
             <p style="margin-top: 15px; text-align: center; font-size: 12px; color: var(--color-text-secondary);">
-                Demo: NFO: "nfo1"/"password" | Admin: "admin"/"password" | Super Admin: "superadmin"/"admin123"
+                Demo: NFO: "nfo1"/"password" | Admin: "admin"/"password"
             </p>
         </div>
     </div>
@@ -453,102 +452,6 @@
         </div>
     </div>
 
-    <!-- Super Admin Dashboard -->
-    <div id="superAdminDashboard" class="hidden">
-        <div class="header">
-            <h1>⚙️ Super Admin Panel</h1>
-            <div class="user-info">
-                <span id="superAdminUserName" style="font-weight: 600;"></span>
-                <button onclick="logout()" class="btn btn-secondary">Logout</button>
-            </div>
-        </div>
-
-        <div class="container">
-            <div class="management-dashboard">
-                <!-- User Management Section -->
-                <div style="background: var(--color-surface); padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 20px;">
-                    <h2 style="margin-bottom: 20px; color: var(--color-primary);">User Management</h2>
-                    
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
-                        <!-- NFO Users -->
-                        <div>
-                            <h3 style="margin-bottom: 15px;">Network Field Officers (NFO)</h3>
-                            <div class="form-group">
-                                <label for="nfoCSVUpload">Upload NFO Users CSV:</label>
-                                <input type="file" id="nfoCSVUpload" accept=".csv" style="margin-bottom: 10px;">
-                                <button onclick="uploadNFOUsers()" class="btn btn-primary">Upload NFO Users</button>
-                            </div>
-                            <p style="font-size: 12px; color: var(--color-text-secondary); margin-top: 10px;">
-                                CSV Format: username,password (one per line)<br>
-                                Example: nfo1,password123
-                            </p>
-                            <div style="margin-top: 20px; max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; padding: 15px;">
-                                <h4 style="margin-bottom: 10px;">Current NFO Users (<span id="nfoUserCount">0</span>):</h4>
-                                <div id="nfoUserList" style="font-size: 13px;"></div>
-                            </div>
-                        </div>
-
-                        <!-- Management Users -->
-                        <div>
-                            <h3 style="margin-bottom: 15px;">Management Users</h3>
-                            <div class="form-group">
-                                <label for="mgmtCSVUpload">Upload Management Users CSV:</label>
-                                <input type="file" id="mgmtCSVUpload" accept=".csv" style="margin-bottom: 10px;">
-                                <button onclick="uploadMgmtUsers()" class="btn btn-primary">Upload Management Users</button>
-                            </div>
-                            <p style="font-size: 12px; color: var(--color-text-secondary); margin-top: 10px;">
-                                CSV Format: username,password (one per line)<br>
-                                Example: admin1,admin123
-                            </p>
-                            <div style="margin-top: 20px; max-height: 300px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; padding: 15px;">
-                                <h4 style="margin-bottom: 10px;">Current Management Users (<span id="mgmtUserCount">0</span>):</h4>
-                                <div id="mgmtUserList" style="font-size: 13px;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Site Management Section -->
-                <div style="background: var(--color-surface); padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-                    <h2 style="margin-bottom: 20px; color: var(--color-primary);">Site Management</h2>
-                    
-                    <div class="form-group">
-                        <label for="siteCSVUpload">Upload Sites CSV:</label>
-                        <input type="file" id="siteCSVUpload" accept=".csv" style="margin-bottom: 10px;">
-                        <button onclick="uploadSites()" class="btn btn-success" style="margin-right: 10px;">Upload Sites</button>
-                        <button onclick="downloadSiteTemplate()" class="btn btn-secondary">Download CSV Template</button>
-                    </div>
-                    
-                    <p style="font-size: 12px; color: var(--color-text-secondary); margin-top: 10px; margin-bottom: 20px;">
-                        CSV Format: site_id,site_name,latitude,longitude (with header row)<br>
-                        Example:<br>
-                        site_id,site_name,latitude,longitude<br>
-                        SITE-0001,Site 1,24.7136,46.6753
-                    </p>                <div style="background: #f1f5f9; padding: 20px; border-radius: 8px;">
-                    <h3 style="margin-bottom: 15px;">Current Sites Information</h3>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
-                        <div>
-                            <strong>Total Sites:</strong>
-                            <div style="font-size: 24px; color: var(--color-primary); margin-top: 5px;" id="adminTotalSites">0</div>
-                        </div>
-                            <div>
-                                <strong>Last Updated:</strong>
-                                <div style="font-size: 14px; margin-top: 5px;" id="sitesLastUpdated">Never</div>
-                            </div>
-                            <div>
-                                <strong>Status:</strong>
-                                <div style="font-size: 14px; margin-top: 5px;">
-                                    <span class="status-badge" style="background: #dcfce7; color: var(--color-success);">Active</span>
-                                </div>
-                            </div>
-                        </div>
-                        <button onclick="viewSitesPreview()" class="btn btn-secondary" style="margin-top: 15px;">Preview Sites on Map</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Management Dashboard -->
     <div id="managementDashboard" class="hidden">
         <div class="header">
@@ -560,6 +463,12 @@
         </div>
 
         <div class="container">
+            <div class="nfo-search-panel" style="background: var(--card-bg); border: 1px solid #e5e7eb; border-radius: 16px; padding: 16px; margin: 0 0 16px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
+                <h3 style="margin-top: 0;">Search NFO by Name or ID</h3>
+                <input id="nfoSearchInput" type="text" placeholder="Search (e.g. Salman or EZL...)" style="width: 100%; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 12px; font-size: 14px;">
+                <div id="nfoSearchResults" style="margin-top: 10px; font-size: 14px; color: var(--color-text-secondary);"></div>
+            </div>
+
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="number" id="totalNFOs" style="color: var(--color-primary);">50</div>
@@ -574,25 +483,62 @@
                     <div class="label">Busy</div>
                 </div>
                 <div class="stat-card">
+                    <div class="number" id="loggedInNFOs" style="color: var(--color-success);">0</div>
+                    <div class="label">Logged in NFOs (ping &lt; 1 min)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="number" id="loggedOutNFOs" style="color: var(--color-text-secondary);">0</div>
+                    <div class="label">Logged out / no ping (&gt;1 min)</div>
+                </div>
+                <div class="stat-card">
                     <div class="number" id="totalSites" style="color: var(--color-warning);">0</div>
                     <div class="label">Total Sites</div>
                 </div>
             </div>
 
-            <div class="management-dashboard">
-                <div class="map-container">
-                    <div class="map-controls">
-                        <button class="filter-btn active" onclick="filterMap('all')">All</button>
-                        <button class="filter-btn" onclick="filterMap('nfo')">NFOs Only</button>
-                        <button class="filter-btn" onclick="filterMap('sites')">Sites Only</button>
-                        <button class="filter-btn" onclick="filterMap('busy')">Busy NFOs</button>
-                        <button class="filter-btn" onclick="filterMap('free')">Free NFOs</button>
-                    </div>
+            <div class="site-search-panel" style="background: var(--card-bg); border: 1px solid #e5e7eb; border-radius: 16px; padding: 16px; margin: 16px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
+                <h3 style="margin-top: 0;">Nearest NFO / Dispatch</h3>
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center;">
+                    <input id="searchSiteId" type="text" placeholder="Enter Site ID (e.g. W5234 or SITE-0001)" style="flex: 1 1 200px; padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 12px; font-size: 14px;">
+                    <select id="searchMode" style="padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 12px; font-size: 14px;">
+                        <option value="nearest">Nearest NFO</option>
+                        <option value="dispatch">Dispatch candidates</option>
+                    </select>
+                    <select id="searchNfoStatus" style="padding: 10px 12px; border: 1px solid #e5e7eb; border-radius: 12px; font-size: 14px;">
+                        <option value="any">any</option>
+                        <option value="busy only">busy only</option>
+                        <option value="free only">free only</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="runNfoSearch()">Run Search</button>
+                </div>
+                <div id="siteSearchResults" style="margin-top: 10px; font-size: 14px; color: var(--color-text-secondary);"></div>
+            </div>
+
+                <div class="management-dashboard">
+                    <div class="map-container">
+                        <div class="map-controls">
+                            <button class="filter-btn active" onclick="filterMap('all', this)">All</button>
+                            <button class="filter-btn" onclick="filterMap('nfo', this)">NFOs Only</button>
+                            <button class="filter-btn" onclick="filterMap('sites', this)">Sites Only</button>
+                            <button class="filter-btn" onclick="filterMap('busy', this)">Busy NFOs</button>
+                            <button class="filter-btn" onclick="filterMap('free', this)">Free NFOs</button>
+                            <select id="loginFilter" style="margin-left: 8px; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 12px;">
+                                <option value="all" selected>All NFOs</option>
+                                <option value="logged-in">Logged in only</option>
+                                <option value="logged-out">Logged out only</option>
+                            </select>
+                        </div>
+                    <div id="areaLegend" style="display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0; font-size: 12px; color: var(--color-text-secondary);"></div>
                     <div id="map"></div>
                 </div>
 
                 <div class="nfo-list">
                     <h3>Field Engineers Status</h3>
+                    <div class="tab-bar" style="display: flex; gap: 8px; margin-bottom: 10px;">
+                        <button class="filter-btn login-tab active" data-login-filter="all">All NFOs</button>
+                        <button class="filter-btn login-tab" data-login-filter="logged-in">Logged in NFOs</button>
+                        <button class="filter-btn login-tab" data-login-filter="logged-out">Logged out NFOs</button>
+                    </div>
                     <div id="nfoListContainer"></div>
                 </div>
             </div>
@@ -600,72 +546,697 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         // App State
+        const SUPABASE_URL = "https://rzivbeaqfhamlpsfaqov.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_Kifo4X6qxs6nkv7yilHRkA_7RapeV4a";  // sb_publishable_...
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const ORS_BACKEND_BASE_URL = "https://meerabeer1990-nfo-ors-backend.hf.space";
+        const NFO_REFRESH_INTERVAL_MS = 30000;
+        const AREA_COLORS = {
+            makkah: '#ff4d4d',
+            jeddah: '#4d94ff',
+            taif: '#33cc33',
+            remote: '#ffcc00'
+        };
+
         let currentUser = null;
         let map = null;
         let nfoMarkers = [];
         let siteMarkers = [];
+        let nfoRouteLayers = new Map();
+        let nfoConnectionLines = [];
+        let dispatchLines = [];
+        let selectedNfoId = null;
         let watchId = null;
         let currentMapFilter = 'all';
+        let currentLoginFilter = 'all';
 
-        // User credentials storage (In production, use secure backend)
-        let nfoUsers = [
-            { username: 'nfo1', password: 'password' },
-            { username: 'nfo2', password: 'password' }
+        let nfoUsers = [];
+        let mgmtUsers = [];
+
+        const nfoIcon = L.divIcon({
+            html: '<div style="background: #2563eb; width: 26px; height: 26px; border-radius: 6px; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.35);"></div>',
+            className: 'custom-marker',
+            iconSize: [26, 26],
+            iconAnchor: [13, 13]
+        });
+
+        const nfoBusyIcon = L.divIcon({
+            html: '<div style="background: #dc2626; width: 26px; height: 26px; border-radius: 6px; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.35);"></div>',
+            className: 'custom-marker',
+            iconSize: [26, 26],
+            iconAnchor: [13, 13]
+        });
+
+        function getAreaColor(area, hasCoords) {
+            if (!hasCoords) return '#9ca3af';
+            if (!area) return 'gray';
+
+            const key = area.trim().toLowerCase();
+            return AREA_COLORS[key] || 'gray';
+        }
+
+        function createSiteIcon(site) {
+            const hasCoords = hasValidLocation(site?.location) && !site?.missingCoords;
+            const color = getAreaColor(site?.area, hasCoords);
+            return L.divIcon({
+                html: `<div style="background: ${color}; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"></div>`,
+                className: 'custom-marker',
+                iconSize: [12, 12],
+                iconAnchor: [6, 6]
+            });
+        }
+
+        function renderAreaLegend() {
+            const legendEl = document.getElementById('areaLegend');
+            if (!legendEl) return;
+
+            const entries = [
+                { label: 'Makkah', color: AREA_COLORS.makkah },
+                { label: 'Jeddah', color: AREA_COLORS.jeddah },
+                { label: 'Taif', color: AREA_COLORS.taif },
+                { label: 'Remote', color: AREA_COLORS.remote },
+                { label: 'Other', color: 'gray' },
+                { label: 'Missing coordinates', color: '#9ca3af' }
+            ];
+
+            legendEl.innerHTML = entries.map(entry => `
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: ${entry.color};"></span>
+                    <span>${entry.label}</span>
+                </div>
+            `).join('');
+        }
+
+        const DEFAULT_NFO_USERS = [
+            { username: 'nfo1', password: 'password', fullName: 'nfo1' },
+            { username: 'nfo2', password: 'password', fullName: 'nfo2' }
         ];
-        let mgmtUsers = [
+
+        const DEFAULT_MGMT_USERS = [
             { username: 'admin', password: 'password' }
         ];
-        let superAdminCredentials = { username: 'superadmin', password: 'admin123' };
 
         // Demo data - In production, this would come from a database
-        const nfoData = [];
-        
+        let nfoData = [];
+
+        // Site data - will be populated from CSV files
+        const siteData = [];
+        const DEFAULT_COORDINATES = { lat: 24.7136, lng: 46.6753 };
+
+        const DEFAULT_SITES = [
+            { id: 'SITE-0001', name: 'Riyadh Tower 1', location: { lat: 24.7136, lng: 46.6753 }, isDefaultLocation: false },
+            { id: 'SITE-0002', name: 'Jeddah Station', location: { lat: 21.4225, lng: 39.8262 }, isDefaultLocation: false },
+            { id: 'SITE-0003', name: 'Dammam Hub', location: { lat: 26.4207, lng: 50.0888 }, isDefaultLocation: false }
+        ];
+
+        function parseCSV(text, { skipHeader = false } = {}) {
+            if (!text) return [];
+
+            const rows = [];
+            const lines = text.split(/\r\n|\r|\n/);
+
+            lines.forEach(rawLine => {
+                const line = rawLine.trim();
+                if (!line) return;
+
+                const values = [];
+                let current = '';
+                let inQuotes = false;
+
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+
+                    if (char === '"') {
+                        if (inQuotes && line[i + 1] === '"') {
+                            current += '"';
+                            i++;
+                        } else {
+                            inQuotes = !inQuotes;
+                        }
+                    } else if (char === ',' && !inQuotes) {
+                        values.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+
+                values.push(current.trim());
+                if (values.some(cell => cell.length > 0)) {
+                    rows.push(values);
+                }
+            });
+
+            if (skipHeader && rows.length && rows[0][0] && /^(username|site_id|site id)$/i.test(rows[0][0])) {
+                rows.shift();
+            }
+
+            return rows;
+        }
+
+        async function fetchCSV(path) {
+            try {
+                const response = await fetch(path);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.text();
+            } catch (error) {
+                console.warn(`Unable to load ${path}`, error);
+                return null;
+            }
+        }
+
+        function dedupeUsers(users) {
+            const byUsername = new Map();
+
+            users.forEach(user => {
+                const key = (user.username || '').toLowerCase();
+                if (!key) return;
+
+                const existing = byUsername.get(key);
+                if (!existing) {
+                    byUsername.set(key, { ...user });
+                    return;
+                }
+
+                if (!existing.fullName && user.fullName) {
+                    existing.fullName = user.fullName;
+                }
+            });
+
+            return Array.from(byUsername.values());
+        }
+
+        function getCurrentNfo() {
+            if (!currentUser || !currentUser.id) {
+                alert('NFO profile not found. Please log in again.');
+                return null;
+            }
+
+            const nfo = nfoData.find(n => n.id === currentUser.id);
+            if (!nfo) {
+                alert('NFO profile not found. Please log in again.');
+                return null;
+            }
+            return nfo;
+        }
+
+        function hasValidLocation(location) {
+            return location && Number.isFinite(location.lat) && Number.isFinite(location.lng);
+        }
+
+        async function fetchRoadRoute(nfoLocation, siteLocation) {
+            if (!hasValidLocation(nfoLocation) || !hasValidLocation(siteLocation)) {
+                throw new Error('Missing locations for ORS');
+            }
+
+            const url = new URL(`${ORS_BACKEND_BASE_URL}/eta`);
+            url.searchParams.set('start_lon', nfoLocation.lng);
+            url.searchParams.set('start_lat', nfoLocation.lat);
+            url.searchParams.set('end_lon', siteLocation.lng);
+            url.searchParams.set('end_lat', siteLocation.lat);
+            url.searchParams.set('profile', 'driving-car');
+
+            const response = await fetch(url.toString(), { method: 'GET' });
+
+            if (!response.ok) {
+                throw new Error('ORS backend request failed: ' + response.status);
+            }
+
+            const json = await response.json();
+            if (json == null || typeof json.distance_km !== 'number' || typeof json.duration_min !== 'number') {
+                throw new Error('ORS backend response missing distance or duration');
+            }
+
+            const distanceKm = json.distance_km;
+            const etaMinutes = json.duration_min;
+            return { distanceKm, etaMinutes };
+        }
+
+        async function fetchRouteGeoJSON(nfoLocation, siteLocation) {
+            if (!hasValidLocation(nfoLocation) || !hasValidLocation(siteLocation)) {
+                throw new Error('Missing locations for ORS route');
+            }
+
+            const url = new URL(`${ORS_BACKEND_BASE_URL}/route`);
+            url.searchParams.set('start_lon', nfoLocation.lng);
+            url.searchParams.set('start_lat', nfoLocation.lat);
+            url.searchParams.set('end_lon', siteLocation.lng);
+            url.searchParams.set('end_lat', siteLocation.lat);
+            url.searchParams.set('profile', 'driving-car');
+
+            const response = await fetch(url.toString(), { method: 'GET' });
+            if (!response.ok) {
+                throw new Error('ORS backend route request failed: ' + response.status);
+            }
+
+            return response.json();
+        }
+
+        async function updateBusyNfoRouteInfo(nfo) {
+            if (!nfo || !nfo.siteId) {
+                nfo && (nfo.routeInfo = null);
+                return;
+            }
+
+            const activeSite = getSiteById(nfo.siteId);
+            if (!activeSite || !hasValidLocation(nfo.location) || !hasValidLocation(activeSite.location) || activeSite.isDefaultLocation) {
+                nfo.routeInfo = null;
+                return;
+            }
+
+            try {
+                const { distanceKm, etaMinutes } = await fetchRoadRoute(nfo.location, activeSite.location);
+                let routeGeoJSON = null;
+
+                try {
+                    routeGeoJSON = await fetchRouteGeoJSON(nfo.location, activeSite.location);
+                } catch (routeErr) {
+                    console.error('ORS route GeoJSON error for NFO', nfo?.id, routeErr);
+                }
+
+                nfo.routeInfo = {
+                    siteId: activeSite.id,
+                    siteName: activeSite.name || '',
+                    distanceKm,
+                    etaMinutes,
+                    routeGeoJSON
+                };
+            } catch (err) {
+                console.error('ORS route error for NFO', nfo?.id, err);
+                nfo.routeInfo = null;
+            }
+        }
+
+        function removeRouteLayer(nfoId) {
+            if (!map) return;
+            const existing = nfoRouteLayers.get(nfoId);
+            if (existing?.layer) {
+                map.removeLayer(existing.layer);
+            }
+            nfoRouteLayers.delete(nfoId);
+        }
+
+        function refreshRouteLayer(nfo) {
+            if (!map) return;
+
+            if (!nfo.routeInfo?.routeGeoJSON) {
+                removeRouteLayer(nfo.id);
+                return;
+            }
+
+            const routeKey = JSON.stringify(nfo.routeInfo.routeGeoJSON);
+            const existing = nfoRouteLayers.get(nfo.id);
+            if (existing && existing.key === routeKey) {
+                return;
+            }
+
+            if (existing?.layer) {
+                map.removeLayer(existing.layer);
+            }
+
+            try {
+                const routeLayer = L.geoJSON(nfo.routeInfo.routeGeoJSON, {
+                    style: {
+                        color: '#3b82f6',
+                        weight: 4,
+                        opacity: 0.6
+                    }
+                }).addTo(map);
+
+                nfoRouteLayers.set(nfo.id, { layer: routeLayer, key: routeKey });
+            } catch (err) {
+                console.error('Failed to render route for NFO', nfo?.id, err);
+            }
+        }
+
+        function loadUsersFromText(text, fallback) {
+            const rows = parseCSV(text, { skipHeader: true });
+            const users = rows
+                .filter(row => row.length >= 2 && row[0] && row[1])
+                .map(row => ({
+                    username: row[0],
+                    password: row[1],
+                    fullName: row[2] || row[0]
+                }));
+
+            const result = users.length ? users : fallback;
+            return dedupeUsers(result);
+        }
+
+        function loadSitesFromText(text) {
+            const rows = parseCSV(text, { skipHeader: true });
+            const sites = [];
+
+            rows.forEach(row => {
+                if (!row.length) return;
+
+                const [siteId, siteName, latStr, lngStr, area] = row;
+                const lat = parseFloat(latStr);
+                const lng = parseFloat(lngStr);
+                const hasValidCoords = Number.isFinite(lat) && Number.isFinite(lng);
+
+                const id = (siteId || 'SITE').trim();
+                if (!id) return;
+
+                sites.push({
+                    id,
+                    name: siteName || siteId || 'Unknown Site',
+                    location: hasValidCoords ? { lat, lng } : { ...DEFAULT_COORDINATES },
+                    isDefaultLocation: !hasValidCoords,
+                    area: area || '',
+                    missingCoords: !hasValidCoords
+                });
+            });
+
+            const missingCoordsCount = sites.filter(site => site.missingCoords).length;
+            console.log(`Loaded ${sites.length} sites from CSV (missing coords: ${missingCoordsCount})`);
+
+            if (sites.length) {
+                return sites;
+            }
+
+            return DEFAULT_SITES.map(site => ({ ...site, isDefaultLocation: !!site.isDefaultLocation }));
+        }
+
+        function loadPersistedNFOState() {
+            try {
+                const cached = localStorage.getItem('nfoState');
+                if (!cached) return null;
+                return JSON.parse(cached);
+            } catch (err) {
+                console.warn('Unable to read saved NFO state', err);
+                return null;
+            }
+        }
+
+        function persistNFOState() {
+            try {
+                localStorage.setItem('nfoState', JSON.stringify(nfoData));
+            } catch (err) {
+                console.warn('Unable to persist NFO state', err);
+            }
+        }
+
+        function markNfoPing(nfo) {
+            if (!nfo) return;
+            const now = Date.now();
+            const nowIso = new Date(now).toISOString();
+            nfo.lastPing = nowIso;
+            nfo.lastPingMs = now;
+            nfo.isOnline = !!(nfo.loggedIn && (Date.now() - nfo.lastPingMs <= 60000));
+        }
+
+        async function saveNfoStatusToSupabase(nfo) {
+            if (!nfo) return;
+
+            const nowIso = new Date().toISOString();
+
+            const payload = {
+                id: nfo.id,
+                name: nfo.name,
+                on_shift: !!nfo.onShift,
+                status: nfo.status || 'free',
+                activity: nfo.activity || null,
+                site_id: nfo.siteId || null,
+                work_order_id: nfo.workOrderId || null,
+                lat: nfo.location?.lat ?? null,
+                lng: nfo.location?.lng ?? null,
+                logged_in: !!nfo.loggedIn,
+                last_ping: nowIso
+            };
+
+            const { error } = await supabase.from('nfo_status').upsert(payload);
+            if (error) {
+                console.error('Failed to save NFO status to Supabase', error);
+            }
+        }
+
+        async function loadAllNfosFromSupabase() {
+            try {
+                const previousById = new Map(nfoData.map(nfo => [nfo.id, nfo]));
+                const { data, error } = await supabase.from('nfo_status').select('*');
+
+                if (error) {
+                    console.error('Failed to load NFOs from Supabase', error);
+                    return;
+                }
+
+                const updatedMap = new Map(nfoData.map(nfo => [nfo.id, { ...nfo }]));
+                const now = Date.now();
+                let changed = false;
+
+                (data || []).forEach(row => {
+                    const existing = updatedMap.get(row.id);
+                    const previous = previousById.get(row.id);
+                    const merged = existing ? { ...existing } : {
+                        id: row.id,
+                        name: row.name || row.id,
+                        onShift: false,
+                        status: 'free',
+                        activity: '',
+                        siteId: '',
+                        workOrderId: '',
+                        location: null,
+                        routeInfo: null,
+                        loggedIn: false,
+                        lastPing: null,
+                        lastPingMs: null,
+                        isOnline: false
+                    };
+
+                    const supLocation = (row.lat != null && row.lng != null)
+                        ? { lat: row.lat, lng: row.lng }
+                        : null;
+
+                    const previousLocation = merged.location ? { ...merged.location } : null;
+
+                    merged.name = row.name ?? merged.name ?? row.id;
+                    merged.onShift = row.on_shift !== undefined && row.on_shift !== null
+                        ? !!row.on_shift
+                        : (merged.onShift ?? false);
+                    merged.status = row.status ?? merged.status ?? 'free';
+                    merged.activity = row.activity ?? merged.activity ?? '';
+                    merged.siteId = row.site_id ?? merged.siteId ?? '';
+                    merged.workOrderId = row.work_order_id ?? merged.workOrderId ?? '';
+                    merged.loggedIn = row.logged_in !== undefined && row.logged_in !== null
+                        ? !!row.logged_in
+                        : (merged.loggedIn ?? false);
+
+                    const lastPingStr = row.last_ping ?? previous?.lastPing ?? null;
+                    let lastPingMs = null;
+                    if (lastPingStr) {
+                        const parsed = Date.parse(lastPingStr);
+                        if (Number.isFinite(parsed)) {
+                            lastPingMs = parsed;
+                        }
+                    }
+
+                    merged.lastPing = lastPingStr;
+                    merged.lastPingMs = lastPingMs;
+
+                    merged.location = supLocation
+                        ? supLocation
+                        : (hasValidLocation(previousLocation) ? previousLocation : null);
+
+                    if (
+                        merged.routeInfo &&
+                        previous?.location &&
+                        merged.location &&
+                        (previous.location.lat !== merged.location.lat || previous.location.lng !== merged.location.lng)
+                    ) {
+                        merged.routeInfo = null;
+                    }
+
+                    const isOnlineNow = !!(merged.loggedIn && merged.lastPingMs && (now - merged.lastPingMs <= 60000));
+                    merged.isOnline = isOnlineNow;
+
+                    updatedMap.set(row.id, merged);
+
+                    if (!previous) {
+                        changed = true;
+                        return;
+                    }
+
+                    const locationsChanged = hasValidLocation(previous.location) !== hasValidLocation(merged.location)
+                        || (hasValidLocation(previous.location) && hasValidLocation(merged.location)
+                            && (previous.location.lat !== merged.location.lat || previous.location.lng !== merged.location.lng));
+
+                    if (
+                        previous.name !== merged.name ||
+                        previous.onShift !== merged.onShift ||
+                        previous.status !== merged.status ||
+                        previous.activity !== merged.activity ||
+                        previous.siteId !== merged.siteId ||
+                        previous.workOrderId !== merged.workOrderId ||
+                        previous.loggedIn !== merged.loggedIn ||
+                        previous.isOnline !== merged.isOnline ||
+                        previous.lastPing !== merged.lastPing ||
+                        locationsChanged
+                    ) {
+                        changed = true;
+                    }
+                });
+
+                nfoUsers.forEach(user => {
+                    const id = user.username;
+                    if (!updatedMap.has(id)) {
+                        changed = true;
+                        updatedMap.set(id, {
+                            id,
+                            name: user.fullName || id,
+                            onShift: false,
+                            status: 'free',
+                            activity: null,
+                            siteId: null,
+                            workOrderId: null,
+                            location: { ...DEFAULT_COORDINATES },
+                            routeInfo: null,
+                            loggedIn: false,
+                            lastPing: null,
+                            lastPingMs: null,
+                            isOnline: false
+                        });
+                    }
+                });
+
+                const updatedNfoData = Array.from(updatedMap.values());
+                if (!changed && updatedNfoData.length === nfoData.length) {
+                    return;
+                }
+
+                nfoData = updatedNfoData;
+                persistNFOState();
+
+                document.getElementById('totalNFOs').textContent = nfoData.length;
+
+                updateStats();
+                updateNFOList();
+                refreshNfoMarkers();
+            } catch (err) {
+                console.error('Unexpected error loading NFOs from Supabase', err);
+            }
+        }
+
         // Function to initialize NFO data based on uploaded users
         function initializeNFOData() {
             nfoData.length = 0; // Clear existing
-            
+
+            const savedState = loadPersistedNFOState();
+
             nfoUsers.forEach((user, index) => {
+                const saved = savedState?.find(entry => entry.id === user.username);
                 nfoData.push({
                     id: user.username,
-                    name: `Engineer ${index + 1}`,
-                    onShift: false,
-                    status: 'free',
-                    activity: null,
-                    siteId: null,
-                    workOrderId: null,
-                    location: {
-                        lat: 24.7136 + (Math.random() - 0.5) * 0.5,
-                        lng: 46.6753 + (Math.random() - 0.5) * 0.5
-                    }
+                    name: user.fullName || user.username || `Engineer ${index + 1}`,
+                    onShift: saved?.onShift || false,
+                    status: saved?.status || 'free',
+                    activity: saved?.activity || null,
+                    siteId: saved?.siteId || null,
+                    workOrderId: saved?.workOrderId || null,
+                    location: hasValidLocation(saved?.location) ? saved.location : null,
+                    routeInfo: saved?.routeInfo || null,
+                    loggedIn: saved?.loggedIn || false,
+                    lastPing: saved?.lastPing || null,
+                    lastPingMs: saved?.lastPingMs || null,
+                    isOnline: false
                 });
+                const current = nfoData[nfoData.length - 1];
+                const parsedPing = current.lastPingMs ?? (current.lastPing ? Date.parse(current.lastPing) : null);
+                current.lastPingMs = Number.isFinite(parsedPing) ? parsedPing : null;
+                current.isOnline = !!(current.loggedIn && current.lastPingMs && (Date.now() - current.lastPingMs <= 60000));
             });
-            
+
             // Update total NFOs count
             document.getElementById('totalNFOs').textContent = nfoData.length;
+            persistNFOState();
         }
-        
-        // Initialize with default users
-        initializeNFOData();
 
-        // Site data - will be populated by Super Admin CSV upload
-        const siteData = [];
+        async function loadDataFromFiles() {
+            const [nfoText, mgmtText, siteText] = await Promise.all([
+                fetchCSV('NFOusers.csv'),
+                fetchCSV('MgmtUsers.csv'),
+                fetchCSV('Site_Coordinates.csv')
+            ]);
+
+            nfoUsers = loadUsersFromText(nfoText, DEFAULT_NFO_USERS);
+            mgmtUsers = loadUsersFromText(mgmtText, DEFAULT_MGMT_USERS);
+
+            siteData.length = 0;
+            const sites = loadSitesFromText(siteText);
+            siteData.push(...sites);
+
+            initializeNFOData();
+            document.getElementById('totalSites').textContent = siteData.length;
+        }
+
+        const dataLoadPromise = loadDataFromFiles();
+
+        async function resumeSession() {
+            await dataLoadPromise;
+            const stored = localStorage.getItem('currentUser');
+            if (!stored) return;
+
+            try {
+                const parsed = JSON.parse(stored);
+                if (!parsed?.type || !parsed?.username) return;
+
+                if (parsed.type === 'nfo' && !parsed.id) {
+                    parsed.id = parsed.username;
+                } else if (parsed.type === 'management' && !parsed.id) {
+                    parsed.id = 'MGMT-001';
+                }
+
+                if (parsed.type === 'nfo' && !nfoUsers.some(user => user.username === parsed.username)) {
+                    localStorage.removeItem('currentUser');
+                    return;
+                }
+
+                if (parsed.type === 'management' && !mgmtUsers.some(user => user.username === parsed.username)) {
+                    localStorage.removeItem('currentUser');
+                    return;
+                }
+
+                currentUser = parsed;
+                document.getElementById('loginScreen').classList.add('hidden');
+
+                if (parsed.type === 'nfo') {
+                    const nfo = nfoData.find(n => n.id === parsed.username);
+                    if (nfo && !nfo.loggedIn) {
+                        nfo.loggedIn = true;
+                        await saveNfoStatusToSupabase(nfo);
+                        persistNFOState();
+                    }
+                    document.getElementById('nfoDashboard').classList.remove('hidden');
+                    document.getElementById('nfoUserName').textContent = parsed.username;
+                    initNFODashboard();
+                } else if (parsed.type === 'management') {
+                    document.getElementById('managementDashboard').classList.remove('hidden');
+                    document.getElementById('mgmtUserName').textContent = parsed.username;
+                    initManagementDashboard();
+                }
+            } catch (err) {
+                console.warn('Unable to restore session', err);
+            }
+        }
+
+        dataLoadPromise.then(() => resumeSession());
 
         // Login handling
-        document.getElementById('loginForm').addEventListener('submit', (e) => {
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            await dataLoadPromise;
             const userType = document.getElementById('userType').value;
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
 
             // Validate credentials
             let isValid = false;
-            
-            if (userType === 'superadmin') {
-                isValid = username === superAdminCredentials.username && 
-                         password === superAdminCredentials.password;
-            } else if (userType === 'nfo') {
+
+            if (userType === 'nfo') {
                 isValid = nfoUsers.some(user => user.username === username && user.password === password);
             } else if (userType === 'management') {
                 isValid = mgmtUsers.some(user => user.username === username && user.password === password);
@@ -679,19 +1250,23 @@
             currentUser = {
                 type: userType,
                 username: username,
-                id: userType === 'nfo' ? username : (userType === 'superadmin' ? 'SUPER-001' : 'MGMT-001')
+                id: userType === 'nfo' ? username : 'MGMT-001'
             };
+
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
 
             document.getElementById('loginScreen').classList.add('hidden');
 
             if (userType === 'nfo') {
+                const nfo = nfoData.find(n => n.id === username);
+                if (nfo) {
+                    nfo.loggedIn = true;
+                    await saveNfoStatusToSupabase(nfo);
+                    persistNFOState();
+                }
                 document.getElementById('nfoDashboard').classList.remove('hidden');
                 document.getElementById('nfoUserName').textContent = username;
                 initNFODashboard();
-            } else if (userType === 'superadmin') {
-                document.getElementById('superAdminDashboard').classList.remove('hidden');
-                document.getElementById('superAdminUserName').textContent = username;
-                initSuperAdminDashboard();
             } else {
                 document.getElementById('managementDashboard').classList.remove('hidden');
                 document.getElementById('mgmtUserName').textContent = username;
@@ -701,47 +1276,111 @@
 
         // NFO Dashboard Functions
         function initNFODashboard() {
-            startLocationTracking();
+            const nfo = getCurrentNfo();
+            if (!nfo) return;
+
+            syncNfoUiState(nfo);
+            startLocationTracking(nfo);
         }
 
-        function startLocationTracking() {
+        function syncNfoUiState(nfo) {
+            const btn = document.getElementById('shiftToggleBtn');
+            const badge = document.getElementById('shiftStatus');
+            const statusText = document.getElementById('activityStatus');
+
+            if (nfo.onShift) {
+                btn.textContent = 'End Shift';
+                btn.className = 'btn btn-danger';
+                badge.textContent = 'On Shift';
+                badge.className = 'status-badge on-shift';
+                statusText.textContent = nfo.status === 'busy' ? 'On shift - Busy' : 'On shift - Available';
+            } else {
+                btn.textContent = 'Start Shift';
+                btn.className = 'btn btn-success';
+                badge.textContent = 'Off Shift';
+                badge.className = 'status-badge off-shift';
+                statusText.textContent = 'Not on shift';
+            }
+
+            document.getElementById('siteId').value = nfo.siteId || '';
+            document.getElementById('workOrderId').value = nfo.workOrderId || '';
+            document.getElementById('activityType').value = nfo.activity || '';
+            document.getElementById('displaySiteId').textContent = nfo.siteId || '-';
+            document.getElementById('displayWorkOrder').textContent = nfo.workOrderId || '-';
+            document.getElementById('displayActivity').textContent = nfo.activity
+                ? nfo.activity.charAt(0).toUpperCase() + nfo.activity.slice(1)
+                : '-';
+        }
+
+        function startLocationTracking(nfoOverride) {
+            const nfo = nfoOverride || getCurrentNfo();
+            if (!nfo) return;
+
             if ("geolocation" in navigator) {
                 watchId = navigator.geolocation.watchPosition(
-                    (position) => {
+                    async (position) => {
+                        const prevLocation = hasValidLocation(nfo.location) ? { ...nfo.location } : null;
                         const lat = position.coords.latitude;
                         const lng = position.coords.longitude;
-                        document.getElementById('displayLocation').textContent = 
+                        document.getElementById('displayLocation').textContent =
                             `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-                        
-                        // Update NFO location in demo data
-                        const nfo = nfoData.find(n => n.id === currentUser.id);
-                        if (nfo) {
-                            nfo.location = { lat, lng };
+
+                        nfo.location = { lat, lng };
+                        const moved = !prevLocation || prevLocation.lat !== lat || prevLocation.lng !== lng;
+                        if (moved && nfo.routeInfo) {
+                            nfo.routeInfo = null;
+                            removeRouteLayer(nfo.id);
                         }
+                        markNfoPing(nfo);
+                        persistNFOState();
+                        refreshManagementViews();
+                        await saveNfoStatusToSupabase(nfo);
                     },
                     (error) => {
-                        document.getElementById('displayLocation').textContent = 
-                            'Location unavailable (using demo location)';
-                        // Use demo location
-                        const demoLat = 24.7136 + Math.random() * 0.1;
-                        const demoLng = 46.6753 + Math.random() * 0.1;
-                        document.getElementById('displayLocation').textContent = 
-                            `${demoLat.toFixed(6)}, ${demoLng.toFixed(6)} (Demo)`;
+                        if (error.code === error.PERMISSION_DENIED) {
+                            nfo.location = null;
+                            nfo.routeInfo = null;
+                            removeRouteLayer(nfo.id);
+                            document.getElementById('displayLocation').textContent =
+                                'Location permission denied – please allow location access for this app.';
+                            persistNFOState();
+                            refreshManagementViews();
+                            return;
+                        }
+
+                        const savedLocation = hasValidLocation(nfo.location) ? nfo.location : null;
+                        if (!savedLocation) {
+                            nfo.location = null;
+                            nfo.routeInfo = null;
+                            removeRouteLayer(nfo.id);
+                        }
+
+                        document.getElementById('displayLocation').textContent =
+                            savedLocation
+                                ? `${savedLocation.lat.toFixed(6)}, ${savedLocation.lng.toFixed(6)} (Last known)`
+                                : 'Location unavailable – using last known location if available.';
+
+                        persistNFOState();
+                        refreshManagementViews();
                     },
                     { enableHighAccuracy: true, maximumAge: 10000 }
                 );
             } else {
-                document.getElementById('displayLocation').textContent = 
+                document.getElementById('displayLocation').textContent =
                     'Geolocation not supported';
             }
         }
 
-        function toggleShift() {
+        async function toggleShift() {
             const btn = document.getElementById('shiftToggleBtn');
             const badge = document.getElementById('shiftStatus');
             const statusText = document.getElementById('activityStatus');
-            
-            const nfo = nfoData.find(n => n.id === currentUser.id) || nfoData[0];
+
+            const nfo = nfoData.find(n => n.id === currentUser.id);
+            if (!nfo) {
+                alert("Current NFO not found in nfoData");
+                return;
+            }
             nfo.onShift = !nfo.onShift;
 
             if (nfo.onShift) {
@@ -758,15 +1397,24 @@
                 statusText.textContent = 'Not on shift';
                 clearActivity();
             }
+
+            markNfoPing(nfo);
+            persistNFOState();
+            refreshManagementViews();
+            await saveNfoStatusToSupabase(nfo);
         }
 
-        function updateActivity() {
+        async function updateActivity() {
             const siteId = document.getElementById('siteId').value;
             const workOrderId = document.getElementById('workOrderId').value;
             const activityType = document.getElementById('activityType').value;
 
-            const nfo = nfoData.find(n => n.id === currentUser.id) || nfoData[0];
-            
+            const nfo = nfoData.find(n => n.id === currentUser.id);
+            if (!nfo) {
+                alert("Current NFO not found in nfoData");
+                return;
+            }
+
             if (!nfo.onShift) {
                 alert('Please start your shift first!');
                 return;
@@ -781,22 +1429,35 @@
             nfo.workOrderId = workOrderId;
             nfo.activity = activityType;
             nfo.status = 'busy';
+            nfo.routeInfo = null;
+            removeRouteLayer(nfo.id);
 
             document.getElementById('displaySiteId').textContent = siteId;
             document.getElementById('displayWorkOrder').textContent = workOrderId;
-            document.getElementById('displayActivity').textContent = 
+            document.getElementById('displayActivity').textContent =
                 activityType.charAt(0).toUpperCase() + activityType.slice(1);
             document.getElementById('activityStatus').textContent = 'On shift - Busy';
+
+            markNfoPing(nfo);
+            persistNFOState();
+            refreshManagementViews();
+            await saveNfoStatusToSupabase(nfo);
 
             alert('Activity updated successfully!');
         }
 
-        function clearActivity() {
-            const nfo = nfoData.find(n => n.id === currentUser.id) || nfoData[0];
+        async function clearActivity() {
+            const nfo = nfoData.find(n => n.id === currentUser.id);
+            if (!nfo) {
+                alert("Current NFO not found in nfoData");
+                return;
+            }
             nfo.siteId = null;
             nfo.workOrderId = null;
             nfo.activity = null;
             nfo.status = 'free';
+            nfo.routeInfo = null;
+            removeRouteLayer(nfo.id);
 
             document.getElementById('siteId').value = '';
             document.getElementById('workOrderId').value = '';
@@ -804,10 +1465,15 @@
             document.getElementById('displaySiteId').textContent = '-';
             document.getElementById('displayWorkOrder').textContent = '-';
             document.getElementById('displayActivity').textContent = '-';
-            
+
             if (nfo.onShift) {
                 document.getElementById('activityStatus').textContent = 'On shift - Available';
             }
+
+            markNfoPing(nfo);
+            persistNFOState();
+            refreshManagementViews();
+            await saveNfoStatusToSupabase(nfo);
         }
 
         // Management Dashboard Functions
@@ -815,14 +1481,44 @@
             // Update total NFOs to reflect actual count
             document.getElementById('totalNFOs').textContent = nfoData.length;
             document.getElementById('totalSites').textContent = siteData.length;
-            
+
             initMap();
+            initNfoSearch();
+            initSearchPanel();
+            const loginFilterEl = document.getElementById('loginFilter');
+            if (loginFilterEl) {
+                loginFilterEl.addEventListener('change', (event) => {
+                    setLoginFilter(event.target.value || 'all');
+                });
+            }
+            initLoginTabs();
+            renderNfoSearchResults();
             updateNFOList();
             updateStats();
-            setInterval(() => {
-                updateNFOList();
-                updateStats();
-            }, 5000);
+
+            loadAllNfosFromSupabase();
+            setInterval(loadAllNfosFromSupabase, NFO_REFRESH_INTERVAL_MS);
+        }
+
+        function initLoginTabs() {
+            const tabs = document.querySelectorAll('.login-tab');
+            if (!tabs.length) return;
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const filter = tab.dataset.loginFilter || 'all';
+                    currentLoginFilter = filter;
+
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+
+                    updateNFOList();
+                    applyMapFilter();
+                });
+            });
+
+            const active = Array.from(tabs).find(t => t.classList.contains('active'));
+            currentLoginFilter = active?.dataset.loginFilter || currentLoginFilter || 'all';
         }
 
         function initMap() {
@@ -832,131 +1528,418 @@
                 attribution: '© OpenStreetMap contributors'
             }).addTo(map);
 
-            // Create custom icons
-            const nfoIcon = L.divIcon({
-                html: '<div style="background: #2563eb; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
-                className: 'custom-marker',
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
-            });
+            clearDispatchLines();
+            refreshNfoMarkers();
 
-            const nfoBusyIcon = L.divIcon({
-                html: '<div style="background: #dc2626; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
-                className: 'custom-marker',
-                iconSize: [24, 24],
-                iconAnchor: [12, 12]
-            });
+            // Add site markers (show all sites)
+            siteMarkers.forEach(marker => map.removeLayer(marker));
+            siteMarkers = [];
 
-            const siteIcon = L.divIcon({
-                html: '<div style="background: #ea580c; width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; box-shadow: 0 1px 2px rgba(0,0,0,0.2);"></div>',
-                className: 'custom-marker',
-                iconSize: [12, 12],
-                iconAnchor: [6, 6]
-            });
+            siteData.forEach(site => {
+                const location = hasValidLocation(site.location) ? site.location : DEFAULT_COORDINATES;
+                const icon = createSiteIcon(site);
+                const warning = site.missingCoords ? '<div style="margin-top: 4px; color: #dc2626;">⚠ Missing coordinates</div>' : '';
 
-            // Add NFO markers
-            nfoData.forEach(nfo => {
-                const icon = nfo.status === 'busy' ? nfoBusyIcon : nfoIcon;
-                const marker = L.marker([nfo.location.lat, nfo.location.lng], { icon })
-                    .bindPopup(`
-                        <strong>${nfo.name}</strong><br>
-                        ID: ${nfo.id}<br>
-                        Status: ${nfo.onShift ? (nfo.status === 'busy' ? 'Busy' : 'Available') : 'Off Shift'}<br>
-                        ${nfo.siteId ? `Site: ${nfo.siteId}<br>` : ''}
-                        ${nfo.activity ? `Activity: ${nfo.activity}` : ''}
-                    `)
-                    .addTo(map);
-                
-                marker.nfoData = nfo;
-                marker.markerType = 'nfo';
-                nfoMarkers.push(marker);
-            });
-
-            // Add site markers (sample - showing 200 for performance)
-            siteData.slice(0, 200).forEach(site => {
-                const marker = L.marker([site.location.lat, site.location.lng], { icon: siteIcon })
+                const marker = L.marker([location.lat, location.lng], { icon })
                     .bindPopup(`
                         <strong>${site.name}</strong><br>
                         ID: ${site.id}<br>
-                        Location: ${site.location.lat.toFixed(4)}, ${site.location.lng.toFixed(4)}
+                        Area: ${site.area || 'N/A'}<br>
+                        Location: ${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}
+                        ${warning}
                     `)
                     .addTo(map);
-                
+
                 marker.markerType = 'site';
+                marker.siteId = site.id;
                 siteMarkers.push(marker);
             });
+
+            renderAreaLegend();
+        }
+
+        function refreshNfoMarkers() {
+            if (!map) return;
+
+            nfoMarkers.forEach(marker => map.removeLayer(marker));
+            nfoMarkers = [];
+
+            const activeRouteIds = new Set();
+
+            nfoData.forEach(nfo => {
+                if (!hasValidLocation(nfo.location)) return;
+
+                const icon = nfo.status === 'busy' ? nfoBusyIcon : nfoIcon;
+                  const marker = L.marker([nfo.location.lat, nfo.location.lng], { icon })
+                      .bindPopup(`
+                          <strong>${nfo.name}</strong><br>
+                          ID: ${nfo.id}<br>
+                          Status: ${nfo.onShift ? (nfo.status === 'busy' ? 'Busy' : 'Available') : 'Off Shift'}<br>
+                          Login: ${nfo.isOnline ? 'Online (ping < 1 min)' : 'Offline / no ping'}<br>
+                          ${nfo.siteId ? `Site: ${nfo.siteId}<br>` : ''}
+                          ${nfo.activity ? `Activity: ${nfo.activity}` : ''}
+                      `)
+                      .addTo(map);
+
+                marker.nfoData = nfo;
+                marker.markerType = 'nfo';
+                nfoMarkers.push(marker);
+
+                if (nfo.routeInfo?.routeGeoJSON) {
+                    activeRouteIds.add(nfo.id);
+                    refreshRouteLayer(nfo);
+                }
+            });
+
+            Array.from(nfoRouteLayers.keys()).forEach(nfoId => {
+                if (!activeRouteIds.has(nfoId)) {
+                    removeRouteLayer(nfoId);
+                }
+            });
+
+            applyMapFilter();
+        }
+
+        function refreshNfoConnections() {
+            if (!map) return;
+
+            nfoConnectionLines.forEach(line => map.removeLayer(line));
+            nfoConnectionLines = [];
+
+            nfoData.forEach(nfo => {
+                if (!nfoPassesMapFilters(nfo)) return;
+                if (!nfo.siteId) return;
+                const site = getSiteById(nfo.siteId);
+                if (!site) return;
+
+                if (!hasValidLocation(nfo.location) || !hasValidLocation(site.location)) return;
+
+                const isHighlighted = selectedNfoId && selectedNfoId === nfo.id;
+                const line = L.polyline(
+                    [
+                        [nfo.location.lat, nfo.location.lng],
+                        [site.location.lat, site.location.lng]
+                    ],
+                    { color: '#ccc', weight: isHighlighted ? 4 : 2, opacity: isHighlighted ? 0.9 : 0.6 }
+                );
+
+                line.addTo(map);
+                nfoConnectionLines.push(line);
+            });
+        }
+
+        function buildNfoCard(nfo) {
+            let nearestLabel = 'Nearest site: N/A (no GPS or site coordinates)';
+            let distanceLabel = 'Nearest site: N/A (no GPS or missing coordinates)';
+            let freeLabel = '';
+            let routeLabel = '';
+            const isOnline = !!nfo.isOnline;
+            const loginLabel = isOnline
+                ? 'Online (ping < 1 min)'
+                : 'Offline / no ping';
+            const loginBadge = `<span style="margin-left: 8px; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; background: ${isOnline ? '#dcfce7' : '#e5e7eb'}; color: ${isOnline ? '#16a34a' : '#475569'};">${loginLabel}</span>`;
+
+            if (nfo.status === 'busy' && nfo.siteId) {
+                const targetSite = getSiteById(nfo.siteId);
+                if (targetSite) {
+                    nearestLabel = `Active site: ${targetSite.id}${targetSite.name ? ' | ' + targetSite.name : ''}`;
+                }
+
+                if (hasValidLocation(nfo.location) && targetSite && hasValidLocation(targetSite.location)) {
+                    if (targetSite.isDefaultLocation || targetSite.missingCoords) {
+                        distanceLabel = 'Distance to active site: N/A (missing site coordinates)';
+                    } else {
+                        const distanceValue = calculateDistance(nfo.location, targetSite.location);
+                        const distanceText = distanceValue > 200
+                            ? '>200 km (check site GPS or NFO GPS)'
+                            : `${distanceValue.toFixed(2)} km`;
+                        distanceLabel = `Distance to active site ${targetSite.id}: ${distanceText}`;
+                    }
+                } else {
+                    distanceLabel = 'Distance to active site: N/A (missing GPS or site coordinates)';
+                }
+            } else {
+                const nearestSite = findNearestSite(nfo.location);
+                if (hasValidLocation(nfo.location) && nearestSite && hasValidLocation(nearestSite.location)) {
+                    if (nearestSite.isDefaultLocation || nearestSite.missingCoords) {
+                        nearestLabel = `Nearest site: ${nearestSite.id} | ${nearestSite.name} | Distance: N/A (missing site coordinates)`;
+                        distanceLabel = 'Nearest site: N/A (missing site coordinates)';
+                    } else {
+                        const distanceValue = calculateDistance(nfo.location, nearestSite.location);
+                        const distanceText = distanceValue > 200
+                            ? '>200 km (check site GPS or NFO GPS)'
+                            : `${distanceValue.toFixed(2)} km`;
+
+                        nearestLabel = `Nearest site: ${nearestSite.id} | ${nearestSite.name} | Distance: ${distanceText}`;
+                        distanceLabel = `Nearest site ${nearestSite.id}: ${distanceText}`;
+
+                        if (nfo.status === 'free' && nfo.onShift) {
+                            freeLabel = `Free near site: ${nearestSite.id} | Distance: ${distanceText}`;
+                        }
+                    }
+                } else if (!hasValidLocation(nfo.location)) {
+                    distanceLabel = 'Nearest site: N/A (no GPS)';
+                }
+            }
+
+            if (nfo.routeInfo) {
+                const distanceValue = nfo.routeInfo.distanceKm;
+                const etaValue = nfo.routeInfo.etaMinutes;
+                const etaRounded = etaValue != null ? Math.max(1, Math.round(etaValue)) : null;
+                const distanceText = distanceValue != null ? `${distanceValue.toFixed(2)} km` : 'N/A';
+                const etaText = etaRounded != null ? `${etaRounded} min` : 'N/A';
+                routeLabel = `Road distance to ${nfo.routeInfo.siteId}: ${distanceText} | ETA: ${etaText} (ORS)`;
+            } else if (nfo.status === 'busy' && nfo.onShift) {
+                routeLabel = 'Road distance to active site: N/A (no GPS or ORS error)';
+            }
+
+            const detailLines = [];
+            const busyParts = [];
+            if (nfo.siteId) busyParts.push(`Site: ${nfo.siteId}`);
+            if (nfo.activity) busyParts.push(`Activity: ${nfo.activity}`);
+            if (busyParts.length) detailLines.push(busyParts.join(' | '));
+            if (routeLabel) detailLines.push(routeLabel);
+            detailLines.push(nearestLabel);
+            detailLines.push(distanceLabel);
+            if (freeLabel) detailLines.push(freeLabel);
+            detailLines.unshift(`<div>Login status: ${loginLabel}</div>`);
+            const detailText = detailLines.map(line => `<div>${line}</div>`).join('');
+
+            const hasRoute = !!nfo.routeInfo;
+            const etaButton = `<button class="eta-btn" data-nfo-id="${nfo.id}">Show Road ETA</button>`;
+            const hideRouteButton = hasRoute ? `<button class="hide-route-btn" data-nfo-id="${nfo.id}" style="margin-left: 8px;">Hide Route</button>` : '';
+
+            return `
+                    <div class="nfo-item" data-nfo-id="${nfo.id}">
+                        <div class="nfo-item-info">
+                            <div class="nfo-name">
+                                <span class="status-indicator ${nfo.status}"></span>
+                                ${nfo.name} (${nfo.id}) ${loginBadge}
+                            </div>
+                            <div class="nfo-details">
+                                ${detailText}
+                            <div style="margin-top: 8px;">
+                                ${etaButton}
+                                ${hideRouteButton}
+                            </div>
+                        </div>
+                    </div>
+                    <span style="font-size: 12px; color: var(--color-text-secondary);">
+                        ${nfo.status === 'busy' ? '🔴 Busy' : '🟢 Free'} | ${loginLabel}
+                    </span>
+                </div>
+            `;
+        }
+
+        function wireRouteButtons(container) {
+            const etaButtons = container.querySelectorAll('.eta-btn');
+            etaButtons.forEach(btn => {
+                btn.addEventListener('click', async (event) => {
+                    event.stopPropagation();
+                    const targetId = btn.getAttribute('data-nfo-id');
+                    const targetNfo = nfoData.find(n => n.id === targetId);
+                    if (!targetNfo) return;
+
+                    if (!targetNfo.siteId) {
+                        alert('No site assigned for this NFO.');
+                        return;
+                    }
+
+                    await updateBusyNfoRouteInfo(targetNfo);
+                    persistNFOState();
+                    refreshNfoMarkers();
+                    updateNFOList();
+                    renderNfoSearchResults();
+                    selectedNfoId = targetId;
+                    refreshNfoConnections();
+
+                    const marker = nfoMarkers.find(m => m.nfoData?.id === targetId);
+                    if (marker && map) {
+                        map.setView(marker.getLatLng(), map.getZoom() || 12, { animate: true });
+                        marker.openPopup?.();
+                    }
+                });
+            });
+
+            const hideButtons = container.querySelectorAll('.hide-route-btn');
+            hideButtons.forEach(btn => {
+                btn.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const targetId = btn.getAttribute('data-nfo-id');
+                    const targetNfo = nfoData.find(n => n.id === targetId);
+                    if (!targetNfo) return;
+
+                    targetNfo.routeInfo = null;
+                    removeRouteLayer(targetNfo.id);
+                    persistNFOState();
+                    refreshNfoMarkers();
+                    updateNFOList();
+                    renderNfoSearchResults();
+                });
+            });
+        }
+
+        function wireNfoCardInteractions(container, { scrollToList = false } = {}) {
+            const tiles = container.querySelectorAll('.nfo-item');
+            tiles.forEach(tile => {
+                tile.addEventListener('click', (event) => {
+                    if (event.target.closest('button')) return;
+
+                    const targetId = tile.getAttribute('data-nfo-id');
+                    const nfo = nfoData.find(n => n.id === targetId);
+                    if (!nfo) return;
+
+                    selectedNfoId = nfo.id;
+                    refreshNfoConnections();
+
+                    if (map && hasValidLocation(nfo.location)) {
+                        map.setView([nfo.location.lat, nfo.location.lng], map.getZoom() || 12, { animate: true });
+                    }
+
+                    const marker = nfoMarkers.find(m => m.nfoData?.id === nfo.id);
+                    marker?.openPopup?.();
+
+                    if (nfo.status === 'busy' && nfo.siteId) {
+                        const site = getSiteById(nfo.siteId);
+                        if (site && hasValidLocation(site.location)) {
+                            const siteMarker = siteMarkers.find(m => m.siteId && m.siteId.toLowerCase() === site.id.toLowerCase());
+                            siteMarker?.openPopup?.();
+                        }
+                    } else {
+                        const nearestSite = findNearestSite(nfo.location);
+                        if (nearestSite) {
+                            const siteMarker = siteMarkers.find(m => m.siteId && m.siteId.toLowerCase() === nearestSite.id.toLowerCase());
+                            siteMarker?.openPopup?.();
+                        }
+                    }
+
+                    if (scrollToList) {
+                        document.getElementById('nfoListContainer')?.scrollIntoView({ behavior: 'smooth' });
+                    }
+                });
+            });
+        }
+
+        function renderNfoCards(nfos, container, emptyText, options = {}) {
+            if (!container) return;
+
+            if (!nfos.length) {
+                container.innerHTML = `<p style="color: var(--color-text-secondary); text-align: center;">${emptyText}</p>`;
+                return;
+            }
+
+            container.innerHTML = nfos.map(buildNfoCard).join('');
+            wireRouteButtons(container);
+            wireNfoCardInteractions(container, options);
         }
 
         function updateNFOList() {
             const container = document.getElementById('nfoListContainer');
-            const onShift = nfoData.filter(n => n.onShift).slice(0, 10);
-            
-            if (onShift.length === 0) {
-                container.innerHTML = '<p style="color: var(--color-text-secondary); text-align: center;">No NFOs on shift</p>';
+            const filterStatus = currentMapFilter;
+            const list = nfoData.filter(n => {
+                if (!passesLoginFilter(n)) return false;
+                if (filterStatus === 'busy' && n.status !== 'busy') return false;
+                if (filterStatus === 'free' && n.status !== 'free') return false;
+                return true;
+            });
+
+            renderNfoCards(list, container, 'No NFOs found');
+        }
+
+        function renderNfoSearchResults() {
+            const input = document.getElementById('nfoSearchInput');
+            const resultsEl = document.getElementById('nfoSearchResults');
+            if (!input || !resultsEl) return;
+
+            const query = input.value.trim().toLowerCase();
+            if (!query) {
+                resultsEl.innerHTML = '<p style="color: var(--color-text-secondary);">Type a name or ID to search.</p>';
                 return;
             }
 
-            container.innerHTML = onShift.map(nfo => {
-                const nearestSite = findNearestSite(nfo.location);
-                const distance = nearestSite ? calculateDistance(nfo.location, nearestSite.location).toFixed(2) : 'N/A';
-                
-                return `
-                    <div class="nfo-item">
-                        <div class="nfo-item-info">
-                            <div class="nfo-name">
-                                <span class="status-indicator ${nfo.status}"></span>
-                                ${nfo.name} (${nfo.id})
-                            </div>
-                            <div class="nfo-details">
-                                ${nfo.siteId ? `Site: ${nfo.siteId} | ` : ''}
-                                ${nfo.activity ? `Activity: ${nfo.activity} | ` : ''}
-                                Distance to nearest site: ${distance} km
-                            </div>
-                        </div>
-                        <span style="font-size: 12px; color: var(--color-text-secondary);">
-                            ${nfo.status === 'busy' ? '🔴 Busy' : '🟢 Free'}
-                        </span>
-                    </div>
-                `;
-            }).join('');
+            const matches = nfoData.filter(nfo => {
+                return (nfo.name && nfo.name.toLowerCase().includes(query)) ||
+                    (nfo.id && nfo.id.toLowerCase().includes(query));
+            }).filter(passesLoginFilter);
+
+            renderNfoCards(matches, resultsEl, 'No matching NFOs found', { scrollToList: true });
+        }
+
+        function initNfoSearch() {
+            const input = document.getElementById('nfoSearchInput');
+            if (!input) return;
+
+            input.addEventListener('input', renderNfoSearchResults);
         }
 
         function updateStats() {
             const onShift = nfoData.filter(n => n.onShift).length;
             const busy = nfoData.filter(n => n.status === 'busy' && n.onShift).length;
+            const total = nfoData.length;
+            const online = nfoData.filter(n => n.isOnline).length;
+            const offline = total - online;
 
             document.getElementById('onShiftNFOs').textContent = onShift;
             document.getElementById('busyNFOs').textContent = busy;
+            document.getElementById('loggedInNFOs').textContent = online;
+            document.getElementById('loggedOutNFOs').textContent = offline;
         }
 
-        function filterMap(type) {
-            currentMapFilter = type;
-            
-            // Update active button
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.classList.remove('active');
-            });
-            event.target.classList.add('active');
+        function passesLoginFilter(nfo) {
+            if (currentLoginFilter === 'logged-in') return !!nfo.isOnline;
+            if (currentLoginFilter === 'logged-out') return !nfo.isOnline;
+            return true;
+        }
 
+        function nfoPassesMapFilters(nfo) {
+            if (!passesLoginFilter(nfo)) return false;
+
+            switch(currentMapFilter) {
+                case 'busy':
+                    return nfo.status === 'busy' && nfo.onShift;
+                case 'free':
+                    return nfo.status === 'free' && nfo.onShift;
+                case 'sites':
+                    return false;
+                default:
+            return true;
+        }
+
+        function setLoginFilter(filter) {
+            currentLoginFilter = filter;
+            const loginFilterEl = document.getElementById('loginFilter');
+            if (loginFilterEl) {
+                loginFilterEl.value = filter;
+            }
+            document.querySelectorAll('.login-tab').forEach(btn => {
+                const value = btn.getAttribute('data-login-filter');
+                btn.classList.toggle('active', value === filter);
+            });
+            applyMapFilter();
+            updateNFOList();
+            renderNfoSearchResults();
+        }
+        }
+
+        function filterMap(type, button) {
+            currentMapFilter = type;
+
+            if (button) {
+                document.querySelectorAll('.filter-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                button.classList.add('active');
+            }
+
+            applyMapFilter();
+        }
+
+        function applyMapFilter() {
             // Show/hide markers based on filter
             nfoMarkers.forEach(marker => {
                 const nfo = marker.nfoData;
-                let show = false;
-
-                switch(type) {
-                    case 'all':
-                        show = true;
-                        break;
-                    case 'nfo':
-                        show = true;
-                        break;
-                    case 'busy':
-                        show = nfo.status === 'busy' && nfo.onShift;
-                        break;
-                    case 'free':
-                        show = nfo.status === 'free' && nfo.onShift;
-                        break;
-                }
+                let show = nfoPassesMapFilters(nfo);
+                if (currentMapFilter === 'nfo') show = passesLoginFilter(nfo);
 
                 if (show) {
                     marker.addTo(map);
@@ -965,20 +1948,51 @@
                 }
             });
 
+            const busySiteIds = new Set(
+                nfoData
+                    .filter(nfo => nfo.status === 'busy' && nfo.siteId && nfo.onShift && passesLoginFilter(nfo))
+                    .map(nfo => nfo.siteId.toLowerCase())
+            );
+
             siteMarkers.forEach(marker => {
-                if (type === 'all' || type === 'sites') {
+                const markerId = marker.siteId?.toLowerCase();
+                const keepForBusy = currentMapFilter === 'busy' && markerId && busySiteIds.has(markerId);
+                if (currentMapFilter === 'all' || currentMapFilter === 'sites' || keepForBusy) {
                     marker.addTo(map);
                 } else {
                     map.removeLayer(marker);
                 }
             });
+
+            refreshNfoConnections();
+        }
+
+        function refreshManagementViews() {
+            if (document.getElementById('managementDashboard').classList.contains('hidden')) {
+                return;
+            }
+
+            updateStats();
+            updateNFOList();
+            refreshNfoMarkers();
+        }
+
+        function getSiteById(siteId) {
+            if (!siteId) return null;
+            const id = siteId.trim().toLowerCase();
+            return siteData.find(s => s.id && s.id.trim().toLowerCase() === id) || null;
         }
 
         function findNearestSite(nfoLocation) {
+            if (!hasValidLocation(nfoLocation)) {
+                return null;
+            }
             let nearest = null;
             let minDistance = Infinity;
 
             siteData.forEach(site => {
+                if (!hasValidLocation(site.location)) return;
+
                 const distance = calculateDistance(nfoLocation, site.location);
                 if (distance < minDistance) {
                     minDistance = distance;
@@ -987,6 +2001,140 @@
             });
 
             return nearest;
+        }
+
+        function getNearestNfos(site, filter, limit = 5) {
+            if (!site || !hasValidLocation(site.location)) return [];
+
+            const candidates = nfoData.filter(nfo => {
+                if (!nfo.onShift || !hasValidLocation(nfo.location)) return false;
+                if (filter === 'busy only') return nfo.status === 'busy';
+                if (filter === 'free only') return nfo.status === 'free';
+                return true;
+            });
+
+            return candidates
+                .map(nfo => ({ nfo, distance: calculateDistance(nfo.location, site.location) }))
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, limit);
+        }
+
+        function clearDispatchLines() {
+            dispatchLines.forEach(line => map?.removeLayer(line));
+            dispatchLines = [];
+        }
+
+        function renderDispatchLines(site, ranked) {
+            clearDispatchLines();
+            if (!map || !hasValidLocation(site?.location)) return;
+
+            ranked.forEach(entry => {
+                if (!hasValidLocation(entry.nfo.location)) return;
+                const line = L.polyline(
+                    [
+                        [site.location.lat, site.location.lng],
+                        [entry.nfo.location.lat, entry.nfo.location.lng]
+                    ],
+                    { color: '#999', weight: 2, opacity: 0.7 }
+                );
+                line.addTo(map);
+                dispatchLines.push(line);
+            });
+        }
+
+        function runNfoSearch() {
+            const siteIdInput = document.getElementById('searchSiteId');
+            const statusSelect = document.getElementById('searchNfoStatus');
+            const modeSelect = document.getElementById('searchMode');
+            const resultsEl = document.getElementById('siteSearchResults');
+
+            if (!siteIdInput || !modeSelect || !resultsEl) return;
+
+            const siteId = siteIdInput.value.trim();
+            const mode = modeSelect.value || 'nearest';
+            const filter = mode === 'nearest' && statusSelect ? statusSelect.value : 'any';
+
+            clearDispatchLines();
+
+            if (!siteId) {
+                resultsEl.textContent = 'Please enter a site ID to search.';
+                return;
+            }
+
+            const site = getSiteById(siteId);
+            if (!site) {
+                resultsEl.textContent = `Site ${siteId} not found.`;
+                return;
+            }
+
+            if (!hasValidLocation(site.location)) {
+                resultsEl.textContent = `Site ${site.id} is missing valid coordinates.`;
+                return;
+            }
+
+            const ranked = getNearestNfos(site, mode === 'nearest' ? filter : 'any', 5);
+
+            if (!ranked.length) {
+                resultsEl.textContent = 'No on-shift NFOs with GPS for this filter.';
+                return;
+            }
+
+            const header = mode === 'nearest'
+                ? `Nearest NFOs to ${site.id} (${site.name})${site.missingCoords ? ' ⚠ Missing coordinates' : ''}:`
+                : `Dispatch candidates for ${site.id}${site.name ? ` (${site.name})` : ''}${site.missingCoords ? ' ⚠ Missing coordinates' : ''}:`;
+
+            const listItems = ranked.map((entry, index) => {
+                const statusLabel = entry.nfo.status === 'busy' ? 'Busy' : 'Free';
+                const statusEmoji = entry.nfo.status === 'busy' ? '🔴' : '🟢';
+                const currentSite = entry.nfo.siteId || 'none';
+                const loginLabel = entry.nfo.isOnline ? 'Online (ping < 1 min)' : 'Offline / no ping';
+                return `<li class="dispatch-item" data-nfo-id="${entry.nfo.id}">${index + 1}) ${entry.nfo.name} (${entry.nfo.id}) – ${entry.distance.toFixed(2)} km – status: ${statusEmoji} ${statusLabel} – ${loginLabel} – current site: ${currentSite}</li>`;
+            }).join('');
+
+            resultsEl.innerHTML = `
+                <strong>${header}</strong>
+                <ul style="margin-top: 8px; padding-left: 20px;">${listItems}</ul>
+            `;
+
+            if (map && hasValidLocation(site.location)) {
+                map.setView([site.location.lat, site.location.lng], 12);
+            }
+
+            if (mode === 'dispatch') {
+                renderDispatchLines(site, ranked);
+            }
+
+            const items = resultsEl.querySelectorAll('.dispatch-item');
+            items.forEach(item => {
+                item.addEventListener('click', () => {
+                    const targetId = item.getAttribute('data-nfo-id');
+                    const targetNfo = nfoData.find(n => n.id === targetId);
+                    if (!targetNfo) return;
+
+                    selectedNfoId = targetNfo.id;
+                    refreshNfoConnections();
+
+                    if (map && hasValidLocation(targetNfo.location)) {
+                        map.setView([targetNfo.location.lat, targetNfo.location.lng], map.getZoom() || 12, { animate: true });
+                    }
+
+                    const marker = nfoMarkers.find(m => m.nfoData?.id === targetId);
+                    marker?.openPopup?.();
+                });
+            });
+        }
+
+        function initSearchPanel() {
+            const modeSelect = document.getElementById('searchMode');
+            const statusSelect = document.getElementById('searchNfoStatus');
+            if (!modeSelect || !statusSelect) return;
+
+            const toggleStatusVisibility = () => {
+                statusSelect.style.display = modeSelect.value === 'nearest' ? 'block' : 'none';
+            };
+
+            modeSelect.addEventListener('change', toggleStatusVisibility);
+            toggleStatusVisibility();
         }
 
         function calculateDistance(loc1, loc2) {
@@ -1000,252 +2148,26 @@
             return R * c;
         }
 
-        // Super Admin Functions
-        function initSuperAdminDashboard() {
-            updateUserLists();
-        }
-
-        function parseCSV(text) {
-            const lines = text.trim().split('\n');
-            return lines.map(line => {
-                // Simple CSV parsing - handles basic cases
-                const values = line.split(',').map(v => v.trim());
-                return values;
-            });
-        }
-
-        function uploadNFOUsers() {
-            const fileInput = document.getElementById('nfoCSVUpload');
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                alert('Please select a CSV file first!');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const text = e.target.result;
-                const rows = parseCSV(text);
-                
-                nfoUsers = [];
-                rows.forEach(row => {
-                    if (row.length >= 2 && row[0] && row[1]) {
-                        nfoUsers.push({
-                            username: row[0],
-                            password: row[1]
-                        });
-                    }
-                });
-                
-                // Regenerate NFO data with new users
-                initializeNFOData();
-                
-                updateUserLists();
-                alert(`Successfully uploaded ${nfoUsers.length} NFO users!\n\nTotal NFOs available: ${nfoData.length}`);
-                fileInput.value = '';
-            };
-            reader.readAsText(file);
-        }
-
-        function uploadMgmtUsers() {
-            const fileInput = document.getElementById('mgmtCSVUpload');
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                alert('Please select a CSV file first!');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const text = e.target.result;
-                const rows = parseCSV(text);
-                
-                mgmtUsers = [];
-                rows.forEach(row => {
-                    if (row.length >= 2 && row[0] && row[1]) {
-                        mgmtUsers.push({
-                            username: row[0],
-                            password: row[1]
-                        });
-                    }
-                });
-                
-                updateUserLists();
-                alert(`Successfully uploaded ${mgmtUsers.length} management users!`);
-                fileInput.value = '';
-            };
-            reader.readAsText(file);
-        }
-
-        function uploadSites() {
-            const fileInput = document.getElementById('siteCSVUpload');
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                alert('Please select a CSV file first!');
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                let text = e.target.result;
-                
-                // Remove BOM if present
-                if (text.charCodeAt(0) === 0xFEFF) {
-                    text = text.slice(1);
-                }
-                
-                // Split by any line break format
-                const lines = text.split(/\r\n|\r|\n/);
-                
-                // Clear existing sites
-                siteData.length = 0;
-                
-                let processedCount = 0;
-                
-                // Process all lines (skip header at index 0)
-                for (let i = 1; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    
-                    // Skip empty lines
-                    if (!line || line.length === 0) continue;
-                    
-                    // Count this row
-                    processedCount++;
-                    
-                    // Split by comma
-                    const values = line.split(',');
-                    
-                    if (values.length >= 2) {
-                        const siteId = values[0].trim();
-                        const siteName = values[1].trim() || 'Unknown';
-                        let lat = 24.7136; // Default Riyadh coordinates
-                        let lng = 46.6753;
-                        
-                        // Try to parse coordinates, use defaults if invalid
-                        if (values.length >= 4) {
-                            const parsedLat = parseFloat(values[2].trim());
-                            const parsedLng = parseFloat(values[3].trim());
-                            
-                            if (!isNaN(parsedLat) && !isNaN(parsedLng) && parsedLat !== 0 && parsedLng !== 0 && parsedLat !== parsedLng) {
-                                lat = parsedLat;
-                                lng = parsedLng;
-                            }
-                        }
-                        
-                        // Add ALL sites - even those with invalid coords
-                        if (siteId) {
-                            siteData.push({
-                                id: siteId,
-                                name: siteName,
-                                location: { lat, lng }
-                            });
-                        }
-                    }
-                }
-                
-                // Update UI with actual count
-                document.getElementById('adminTotalSites').textContent = siteData.length;
-                document.getElementById('totalSites').textContent = siteData.length;
-                document.getElementById('sitesLastUpdated').textContent = new Date().toLocaleString();
-                
-                console.log(`Processed ${processedCount} sites from ${lines.length - 1} data lines`);
-                alert(`Successfully uploaded ${siteData.length} sites! These will be shown on the management map.`);
-                fileInput.value = '';
-            };
-            reader.readAsText(file, 'UTF-8');
-        }
-
-        function downloadSiteTemplate() {
-            const csvContent = 'site_id,site_name,latitude,longitude\nSITE-0001,Riyadh Tower 1,24.7136,46.6753\nSITE-0002,Jeddah Station,21.4225,39.8262\nSITE-0003,Dammam Hub,26.4207,50.0888';
-            
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            
-            link.href = url;
-            link.download = 'site_template.csv';
-            link.style.display = 'none';
-            
-            document.body.appendChild(link);
-            link.click();
-            
-            // Clean up
-            setTimeout(() => {
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-            }, 100);
-            
-            alert('CSV template downloaded successfully!');
-        }
-
-        function viewSitesPreview() {
-            if (siteData.length === 0) {
-                alert('No sites uploaded yet! Please upload a CSV file first.');
-                return;
-            }
-            
-            // Show preview information with more details
-            const sampleSites = siteData.slice(0, 10);
-            let previewMessage = `✓ SUCCESSFULLY LOADED ${siteData.length} SITES\n\n`;
-            previewMessage += '═══════════════════════════════════\n';
-            previewMessage += 'First 10 sites preview:\n';
-            previewMessage += '═══════════════════════════════════\n\n';
-            
-            sampleSites.forEach((site, index) => {
-                previewMessage += `${index + 1}. ${site.id} - ${site.name}\n`;
-                previewMessage += `   📍 Coordinates: ${site.location.lat}, ${site.location.lng}\n\n`;
-            });
-            
-            previewMessage += '═══════════════════════════════════\n';
-            previewMessage += `All ${siteData.length} sites are ready and will be\n`;
-            previewMessage += 'displayed on the Management Dashboard map.\n\n';
-            previewMessage += 'You can now login as Management to view them!';
-            
-            alert(previewMessage);
-        }
-
-        function updateUserLists() {
-            // Update NFO user list
-            const nfoListDiv = document.getElementById('nfoUserList');
-            document.getElementById('nfoUserCount').textContent = nfoUsers.length;
-            
-            if (nfoUsers.length === 0) {
-                nfoListDiv.innerHTML = '<p style="color: var(--color-text-secondary);">No NFO users uploaded</p>';
-            } else {
-                nfoListDiv.innerHTML = nfoUsers.map((user, index) => 
-                    `<div style="padding: 8px; border-bottom: 1px solid var(--color-border);">
-                        ${index + 1}. ${user.username}
-                    </div>`
-                ).join('');
-            }
-
-            // Update Management user list
-            const mgmtListDiv = document.getElementById('mgmtUserList');
-            document.getElementById('mgmtUserCount').textContent = mgmtUsers.length;
-            
-            if (mgmtUsers.length === 0) {
-                mgmtListDiv.innerHTML = '<p style="color: var(--color-text-secondary);">No management users uploaded</p>';
-            } else {
-                mgmtListDiv.innerHTML = mgmtUsers.map((user, index) => 
-                    `<div style="padding: 8px; border-bottom: 1px solid var(--color-border);">
-                        ${index + 1}. ${user.username}
-                    </div>`
-                ).join('');
-            }
-        }
-
-        function logout() {
+        async function logout() {
             if (watchId) {
                 navigator.geolocation.clearWatch(watchId);
             }
+
+            if (currentUser?.type === 'nfo') {
+                const nfo = nfoData.find(n => n.id === currentUser.username);
+                if (nfo) {
+                    nfo.loggedIn = false;
+                    nfo.isOnline = false;
+                    await saveNfoStatusToSupabase(nfo);
+                    persistNFOState();
+                }
+            }
+
             currentUser = null;
+            localStorage.removeItem('currentUser');
             document.getElementById('loginScreen').classList.remove('hidden');
             document.getElementById('nfoDashboard').classList.add('hidden');
             document.getElementById('managementDashboard').classList.add('hidden');
-            document.getElementById('superAdminDashboard').classList.add('hidden');
             document.getElementById('loginForm').reset();
         }
     </script>

@@ -546,10 +546,18 @@
                             <button class="filter-btn" onclick="filterMap('sites', this)">Sites Only</button>
                             <button class="filter-btn" onclick="filterMap('busy', this)">Busy NFOs</button>
                             <button class="filter-btn" onclick="filterMap('free', this)">Free NFOs</button>
-                            <select id="loginFilter" style="margin-left: 8px; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 12px;">
+                            <select id="loginFilter" style="margin-left: 8px; padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 12px;">
                                 <option value="all" selected>All NFOs</option>
                                 <option value="logged-in">Logged in only</option>
                                 <option value="logged-out">Logged out only</option>
+                            </select>
+                            <select id="areaFilter" style="margin-left: 8px; padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 12px;">
+                                <option value="all" selected>All Areas</option>
+                                <option value="Baha">Baha</option>
+                                <option value="Jeddah">Jeddah</option>
+                                <option value="Makkah">Makkah</option>
+                                <option value="Taif">Taif</option>
+                                <option value="Qunfudah">Qunfudah</option>
                             </select>
                         </div>
                     <div id="areaLegend" style="display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0; font-size: 12px; color: var(--color-text-secondary);"></div>
@@ -585,6 +593,11 @@
 
         const ORS_BACKEND_BASE_URL = "https://meerabeer1990-nfo-ors-backend.hf.space";
         const NFO_REFRESH_INTERVAL_MS = 30000;
+        // Activity window for considering an NFO online
+        const ACTIVE_WINDOW_MINUTES = 15;
+        const ACTIVE_WINDOW_MS = ACTIVE_WINDOW_MINUTES * 60 * 1000;
+        const HEARTBEAT_INTERVAL_MS = 45000;      // 45 seconds heartbeat from NFO devices
+        const AUTO_LOGOUT_MS = 10 * 60 * 1000;    // 10 minutes offline -> auto logout / clear shift
         const AREA_COLORS = {
             makkah: '#ff4d4d',
             jeddah: '#4d94ff',
@@ -601,8 +614,10 @@
         let dispatchLines = [];
         let selectedNfoId = null;
         let watchId = null;
+        let nfoHeartbeatIntervalId = null;
         let currentMapFilter = 'all';
         let currentLoginFilter = 'all';
+        let currentAreaFilter = 'all'; // 'all', 'Baha', 'Jeddah', 'Makkah', 'Taif', 'Qunfudah', etc.
 
         let nfoUsers = [];
         let mgmtUsers = [];
@@ -662,8 +677,8 @@
         }
 
         const DEFAULT_NFO_USERS = [
-            { username: 'nfo1', password: 'password', fullName: 'nfo1' },
-            { username: 'nfo2', password: 'password', fullName: 'nfo2' }
+            { username: 'nfo1', password: 'password', fullName: 'nfo1', homeLocation: 'Generic' },
+            { username: 'nfo2', password: 'password', fullName: 'nfo2', homeLocation: 'Generic' }
         ];
 
         const DEFAULT_MGMT_USERS = [
@@ -772,6 +787,36 @@
                 return null;
             }
             return nfo;
+        }
+
+        function startNfoHeartbeat(nfo) {
+            const current = nfo || getCurrentNfo();
+            if (!current) return;
+
+            if (nfoHeartbeatIntervalId) {
+                clearInterval(nfoHeartbeatIntervalId);
+                nfoHeartbeatIntervalId = null;
+            }
+
+            nfoHeartbeatIntervalId = setInterval(async () => {
+                const liveNfo = getCurrentNfo();
+                if (!liveNfo || !liveNfo.loggedIn) {
+                    clearInterval(nfoHeartbeatIntervalId);
+                    nfoHeartbeatIntervalId = null;
+                    return;
+                }
+
+                // Heartbeat ping: keep last_ping fresh even if location does not move
+                markNfoPing(liveNfo, 'heartbeat');
+                await saveNfoStatusToSupabase(liveNfo);
+            }, HEARTBEAT_INTERVAL_MS);
+        }
+
+        function stopNfoHeartbeat() {
+            if (nfoHeartbeatIntervalId) {
+                clearInterval(nfoHeartbeatIntervalId);
+                nfoHeartbeatIntervalId = null;
+            }
         }
 
         function hasValidLocation(location) {
@@ -910,7 +955,8 @@
                 .map(row => ({
                     username: row[0],
                     password: row[1],
-                    fullName: row[2] || row[0]
+                    fullName: row[2] || row[0],
+                    homeLocation: row[3] || null   // Location column from CSV
                 }));
 
             const result = users.length ? users : fallback;
@@ -952,19 +998,36 @@
             return DEFAULT_SITES.map(site => ({ ...site, isDefaultLocation: !!site.isDefaultLocation }));
         }
 
-        function markNfoPing(nfo) {
+        function markNfoPing(nfo, source = 'activity') {
             if (!nfo) return;
+
             const now = Date.now();
             const nowIso = new Date(now).toISOString();
+
+            // Track last active time and source
+            nfo.lastActiveAt = nowIso;
+            nfo.lastActiveAtMs = now;
+            nfo.lastActiveSource = source || nfo.lastActiveSource || null;
+
+            // Keep legacy fields in sync (not used for logic anymore)
             nfo.lastPing = nowIso;
             nfo.lastPingMs = now;
-            nfo.isOnline = !!(nfo.loggedIn && (Date.now() - nfo.lastPingMs <= 60000));
+
+            // Locally consider NFO online as long as logged in and within activity window
+            nfo.isOnline = !!(nfo.loggedIn && nfo.lastActiveAtMs && (Date.now() - nfo.lastActiveAtMs <= ACTIVE_WINDOW_MS));
         }
 
         async function saveNfoStatusToSupabase(nfo) {
             if (!nfo) return;
 
-            const nowIso = new Date().toISOString();
+            const now = Date.now();
+            const nowIso = new Date(now).toISOString();
+
+            // Ensure we have a lastActiveAt if this is the first write
+            if (!nfo.lastActiveAt) {
+                nfo.lastActiveAt = nowIso;
+                nfo.lastActiveAtMs = now;
+            }
 
             const payload = {
                 id: nfo.id,
@@ -977,12 +1040,93 @@
                 lat: nfo.location?.lat ?? null,
                 lng: nfo.location?.lng ?? null,
                 logged_in: !!nfo.loggedIn,
-                last_ping: nowIso
+                last_active_at: nfo.lastActiveAt,
+                last_active_source: nfo.lastActiveSource || null,
+                // keep legacy column populated but no longer used for logic
+                last_ping: nfo.lastPing || nfo.lastActiveAt || nowIso
             };
 
             const { error } = await supabase.from('nfo_status').upsert(payload);
             if (error) {
                 console.error('Failed to save NFO status to Supabase', error);
+            }
+        }
+
+        async function loadSingleNfoStatusFromSupabase(nfo) {
+            if (!nfo) return;
+
+            try {
+                const { data, error } = await supabase
+                    .from('nfo_status')
+                    .select('*')
+                    .eq('id', nfo.id)
+                    .maybeSingle();
+
+                if (error) {
+                    console.error('Failed to load single NFO status from Supabase', error);
+                    return;
+                }
+
+                if (!data) {
+                    // No previous status stored for this NFO
+                    return;
+                }
+
+                const row = data;
+
+                // Home area / location (fixed per NFO)
+                if (row.home_location !== undefined && row.home_location !== null) {
+                    nfo.homeLocation = row.home_location;
+                }
+
+                // Basic shift / status / activity fields
+                nfo.onShift = row.on_shift !== undefined && row.on_shift !== null
+                    ? !!row.on_shift
+                    : (nfo.onShift ?? false);
+
+                nfo.status = row.status ?? nfo.status ?? 'free';
+                nfo.activity = row.activity ?? nfo.activity ?? null;
+                nfo.siteId = row.site_id ?? nfo.siteId ?? null;
+                nfo.workOrderId = row.work_order_id ?? nfo.workOrderId ?? null;
+
+                // logged_in from DB (current session will set it to true again after this)
+                if (row.logged_in !== undefined && row.logged_in !== null) {
+                    nfo.loggedIn = !!row.logged_in;
+                }
+
+                // Restore last active timestamps (prefer last_active_at over legacy last_ping)
+                const lastActiveStr =
+                    row.last_active_at ??
+                    row.last_ping ??
+                    nfo.lastActiveAt ??
+                    nfo.lastPing ??
+                    null;
+
+                let lastActiveMs = null;
+                if (lastActiveStr) {
+                    const parsed = Date.parse(lastActiveStr);
+                    if (Number.isFinite(parsed)) {
+                        lastActiveMs = parsed;
+                    }
+                }
+
+                nfo.lastActiveAt = lastActiveStr;
+                nfo.lastActiveAtMs = lastActiveMs;
+                nfo.lastActiveSource = row.last_active_source ?? nfo.lastActiveSource ?? null;
+
+                // Keep legacy fields in sync
+                nfo.lastPing = lastActiveStr;
+                nfo.lastPingMs = lastActiveMs;
+
+                // Compute online flag using the same 15-min window
+                const now = Date.now();
+                nfo.isOnline = !!(
+                    nfo.loggedIn &&
+                    nfo.lastActiveAtMs &&
+                    (now - nfo.lastActiveAtMs <= ACTIVE_WINDOW_MS)
+                );
+            } catch (err) {
+                console.error('Error loading single NFO status from Supabase', err);
             }
         }
 
@@ -998,6 +1142,7 @@
 
                 const updatedMap = new Map(nfoData.map(nfo => [nfo.id, { ...nfo }]));
                 const now = Date.now();
+                const toAutoLogout = [];
                 let changed = false;
 
                 (data || []).forEach(row => {
@@ -1006,6 +1151,7 @@
                     const merged = existing ? { ...existing } : {
                         id: row.id,
                         name: row.name || row.id,
+                        homeLocation: row.home_location || null,
                         onShift: false,
                         status: 'free',
                         activity: '',
@@ -1016,6 +1162,9 @@
                         loggedIn: false,
                         lastPing: null,
                         lastPingMs: null,
+                        lastActiveAt: null,
+                        lastActiveAtMs: null,
+                        lastActiveSource: null,
                         isOnline: false
                     };
 
@@ -1026,6 +1175,9 @@
                     const previousLocation = merged.location ? { ...merged.location } : null;
 
                     merged.name = row.name ?? merged.name ?? row.id;
+                    if (row.home_location !== undefined && row.home_location !== null) {
+                        merged.homeLocation = row.home_location;
+                    }
                     merged.onShift = row.on_shift !== undefined && row.on_shift !== null
                         ? !!row.on_shift
                         : (merged.onShift ?? false);
@@ -1037,17 +1189,29 @@
                         ? !!row.logged_in
                         : (merged.loggedIn ?? false);
 
-                    const lastPingStr = row.last_ping ?? previous?.lastPing ?? null;
-                    let lastPingMs = null;
-                    if (lastPingStr) {
-                        const parsed = Date.parse(lastPingStr);
+                    // Determine last active timestamp (prefer last_active_at over legacy last_ping)
+                    const lastActiveStr =
+                        row.last_active_at ??
+                        row.last_ping ??
+                        previous?.lastActiveAt ??
+                        previous?.lastPing ??
+                        null;
+
+                    let lastActiveMs = null;
+                    if (lastActiveStr) {
+                        const parsed = Date.parse(lastActiveStr);
                         if (Number.isFinite(parsed)) {
-                            lastPingMs = parsed;
+                            lastActiveMs = parsed;
                         }
                     }
 
-                    merged.lastPing = lastPingStr;
-                    merged.lastPingMs = lastPingMs;
+                    merged.lastActiveAt = lastActiveStr;
+                    merged.lastActiveAtMs = lastActiveMs;
+                    merged.lastActiveSource = row.last_active_source ?? merged.lastActiveSource ?? null;
+
+                    // Keep legacy fields in sync for any old code paths
+                    merged.lastPing = lastActiveStr;
+                    merged.lastPingMs = lastActiveMs;
 
                     merged.location = supLocation
                         ? supLocation
@@ -1062,8 +1226,34 @@
                         merged.routeInfo = null;
                     }
 
-                    const isOnlineNow = !!(merged.loggedIn && merged.lastPingMs && (now - merged.lastPingMs <= 60000));
+                    // NFO is considered online only if logged in AND active within the last 15 minutes
+                    const isOnlineNow = !!(
+                        merged.loggedIn &&
+                        merged.lastActiveAtMs &&
+                        (now - merged.lastActiveAtMs <= ACTIVE_WINDOW_MS)
+                    );
                     merged.isOnline = isOnlineNow;
+
+                    // Auto-logout / clear shift if NFO has been offline for a long time
+                    if (!isOnlineNow && merged.loggedIn && merged.lastActiveAtMs && (now - merged.lastActiveAtMs >= AUTO_LOGOUT_MS)) {
+                        merged.loggedIn = false;
+                        merged.onShift = false;
+                        merged.status = 'free';
+                        merged.activity = '';
+                        merged.siteId = '';
+                        merged.workOrderId = '';
+
+                        // Mark for update in Supabase (minimal payload)
+                        toAutoLogout.push({
+                            id: merged.id,
+                            logged_in: false,
+                            on_shift: false,
+                            status: 'free',
+                            activity: null,
+                            site_id: null,
+                            work_order_id: null
+                        });
+                    }
 
                     updatedMap.set(row.id, merged);
 
@@ -1092,6 +1282,16 @@
                     }
                 });
 
+                if (toAutoLogout.length > 0) {
+                    try {
+                        await supabase
+                            .from('nfo_status')
+                            .upsert(toAutoLogout, { onConflict: 'id' });
+                    } catch (autoErr) {
+                        console.warn('Auto-logout upsert failed', autoErr);
+                    }
+                }
+
                 nfoUsers.forEach(user => {
                     const id = user.username;
                     if (!updatedMap.has(id)) {
@@ -1109,6 +1309,9 @@
                             loggedIn: false,
                             lastPing: null,
                             lastPingMs: null,
+                            lastActiveAt: null,
+                            lastActiveAtMs: null,
+                            lastActiveSource: null,
                             isOnline: false
                         });
                     }
@@ -1139,6 +1342,7 @@
                 nfoData.push({
                     id: user.username,
                     name: user.fullName || user.username || `Engineer ${index + 1}`,
+                    homeLocation: user.homeLocation || null,
                     onShift: false,
                     status: 'free',        // default not busy
                     activity: null,
@@ -1149,6 +1353,9 @@
                     loggedIn: false,
                     lastPing: null,
                     lastPingMs: null,
+                    lastActiveAt: null,
+                    lastActiveAtMs: null,
+                    lastActiveSource: null,
                     isOnline: false
                 });
             });
@@ -1209,10 +1416,20 @@
 
                 if (parsed.type === 'nfo') {
                     const nfo = nfoData.find(n => n.id === parsed.username);
-                    if (nfo && !nfo.loggedIn) {
-                        nfo.loggedIn = true;
-                        await saveNfoStatusToSupabase(nfo);
+                    if (!nfo) {
+                        return;
                     }
+
+                    // 1) Always try to restore last saved status for this NFO
+                    await loadSingleNfoStatusFromSupabase(nfo);
+
+                    // 2) Ensure this browser session is marked as logged in and active
+                    if (!nfo.loggedIn) {
+                        nfo.loggedIn = true;
+                    }
+                    markNfoPing(nfo, 'resume');
+                    await saveNfoStatusToSupabase(nfo);
+
                     document.getElementById('nfoDashboard').classList.remove('hidden');
                     document.getElementById('nfoUserName').textContent = parsed.username;
                     initNFODashboard();
@@ -1263,7 +1480,12 @@
             if (userType === 'nfo') {
                 const nfo = nfoData.find(n => n.id === username);
                 if (nfo) {
+                    // 1) Pull last saved state from Supabase (siteId, workOrderId, activity, onShift, etc.)
+                    await loadSingleNfoStatusFromSupabase(nfo);
+
+                    // 2) Mark this session as logged in and active
                     nfo.loggedIn = true;
+                    markNfoPing(nfo, 'login');
                     await saveNfoStatusToSupabase(nfo);
                 }
                 document.getElementById('nfoDashboard').classList.remove('hidden');
@@ -1283,6 +1505,7 @@
 
             syncNfoUiState(nfo);
             startLocationTracking(nfo);
+            startNfoHeartbeat(nfo);   // NEW: periodic heartbeat while NFO app is open
         }
 
         function syncNfoUiState(nfo) {
@@ -1333,7 +1556,7 @@
                             nfo.routeInfo = null;
                             removeRouteLayer(nfo.id);
                         }
-                        markNfoPing(nfo);
+                        markNfoPing(nfo, 'location');
                         refreshManagementViews();
                         await saveNfoStatusToSupabase(nfo);
                     },
@@ -1396,7 +1619,7 @@
                 clearActivity();
             }
 
-            markNfoPing(nfo);
+            markNfoPing(nfo, 'shift');
             refreshManagementViews();
             await saveNfoStatusToSupabase(nfo);
         }
@@ -1435,7 +1658,7 @@
                 activityType.charAt(0).toUpperCase() + activityType.slice(1);
             document.getElementById('activityStatus').textContent = 'On shift - Busy';
 
-            markNfoPing(nfo);
+            markNfoPing(nfo, 'activity-update');
             refreshManagementViews();
             await saveNfoStatusToSupabase(nfo);
 
@@ -1466,7 +1689,7 @@
                 document.getElementById('activityStatus').textContent = 'On shift - Available';
             }
 
-            markNfoPing(nfo);
+            markNfoPing(nfo, 'activity-clear');
             refreshManagementViews();
             await saveNfoStatusToSupabase(nfo);
         }
@@ -1484,6 +1707,12 @@
             if (loginFilterEl) {
                 loginFilterEl.addEventListener('change', (event) => {
                     setLoginFilter(event.target.value || 'all');
+                });
+            }
+            const areaFilterEl = document.getElementById('areaFilter');
+            if (areaFilterEl) {
+                areaFilterEl.addEventListener('change', (event) => {
+                    setAreaFilter(event.target.value || 'all');
                 });
             }
             initLoginTabs();
@@ -1615,7 +1844,7 @@
                         [nfo.location.lat, nfo.location.lng],
                         [site.location.lat, site.location.lng]
                     ],
-                    { color: '#ccc', weight: isHighlighted ? 4 : 2, opacity: isHighlighted ? 0.9 : 0.6 }
+                    { color: '#facc15', weight: isHighlighted ? 6 : 4, opacity: isHighlighted ? 0.9 : 0.7 }
                 );
 
                 line.addTo(map);
@@ -1830,6 +2059,7 @@
             const container = document.getElementById('nfoListContainer');
             const filterStatus = currentMapFilter;
             const list = nfoData.filter(n => {
+                if (!nfoPassesAreaFilter(n)) return false;
                 if (!passesLoginFilter(n)) return false;
                 if (filterStatus === 'busy' && n.status !== 'busy') return false;
                 if (filterStatus === 'free' && n.status !== 'free') return false;
@@ -1851,6 +2081,7 @@
             }
 
             const matches = nfoData.filter(nfo => {
+                if (!nfoPassesAreaFilter(nfo)) return false;
                 return (nfo.name && nfo.name.toLowerCase().includes(query)) ||
                     (nfo.id && nfo.id.toLowerCase().includes(query));
             }).filter(passesLoginFilter);
@@ -1866,12 +2097,18 @@
         }
 
         function updateStats() {
-            const onShift = nfoData.filter(n => n.onShift).length;
-            const busyOnShift = nfoData.filter(n => n.onShift && n.status === 'busy').length;
-            const freeOnShift = nfoData.filter(n => n.onShift && n.status === 'free').length;
+            // First apply Area filter
+            const areaFiltered = nfoData.filter(nfoPassesAreaFilter);
 
-            const total = nfoData.length;
-            const online = nfoData.filter(n => n.isOnline).length;
+            // Only consider NFOs that are currently online (active within last 15 minutes)
+            const onlineNfos = areaFiltered.filter(n => n.isOnline);
+
+            const onShift = onlineNfos.filter(n => n.onShift).length;
+            const busyOnShift = onlineNfos.filter(n => n.onShift && n.status === 'busy').length;
+            const freeOnShift = onlineNfos.filter(n => n.onShift && n.status === 'free').length;
+
+            const total = areaFiltered.length;
+            const online = onlineNfos.length;
             const offline = total - online;
 
             const onShiftEl = document.getElementById('onShiftNFOs');
@@ -1902,7 +2139,15 @@
             return true;
         }
 
+        function nfoPassesAreaFilter(nfo) {
+            if (!nfo) return false;
+            if (!currentAreaFilter || currentAreaFilter === 'all') return true;
+            const home = (nfo.homeLocation || '').toLowerCase();
+            return home === currentAreaFilter.toLowerCase();
+        }
+
         function nfoPassesMapFilters(nfo) {
+            if (!nfoPassesAreaFilter(nfo)) return false;
             if (!passesLoginFilter(nfo)) return false;
 
             switch(currentMapFilter) {
@@ -1913,7 +2158,8 @@
                 case 'sites':
                     return false;
                 default:
-            return true;
+                    return true;
+            }
         }
 
         function setLoginFilter(filter) {
@@ -1930,6 +2176,18 @@
             updateNFOList();
             renderNfoSearchResults();
         }
+
+        function setAreaFilter(area) {
+            currentAreaFilter = area || 'all';
+            const areaFilterEl = document.getElementById('areaFilter');
+            if (areaFilterEl) {
+                areaFilterEl.value = currentAreaFilter;
+            }
+
+            applyMapFilter();
+            updateNFOList();
+            renderNfoSearchResults();
+            updateStats();
         }
 
         function filterMap(type, button) {
@@ -1950,7 +2208,7 @@
             nfoMarkers.forEach(marker => {
                 const nfo = marker.nfoData;
                 let show = nfoPassesMapFilters(nfo);
-                if (currentMapFilter === 'nfo') show = passesLoginFilter(nfo);
+                if (currentMapFilter === 'nfo') show = nfoPassesAreaFilter(nfo) && passesLoginFilter(nfo);
 
                 if (show) {
                     marker.addTo(map);
@@ -1961,14 +2219,33 @@
 
             const busySiteIds = new Set(
                 nfoData
-                    .filter(nfo => nfo.status === 'busy' && nfo.siteId && nfo.onShift && passesLoginFilter(nfo))
+                    .filter(nfo =>
+                        nfoPassesAreaFilter(nfo) &&
+                        nfo.status === 'busy' &&
+                        nfo.siteId &&
+                        nfo.onShift &&
+                        passesLoginFilter(nfo)
+                    )
+                    .map(nfo => nfo.siteId.toLowerCase())
+            );
+
+            const activeSiteIds = new Set(
+                nfoData
+                    .filter(nfo => nfo.siteId && nfoPassesMapFilters(nfo))
                     .map(nfo => nfo.siteId.toLowerCase())
             );
 
             siteMarkers.forEach(marker => {
                 const markerId = marker.siteId?.toLowerCase();
                 const keepForBusy = currentMapFilter === 'busy' && markerId && busySiteIds.has(markerId);
-                if (currentMapFilter === 'all' || currentMapFilter === 'sites' || keepForBusy) {
+                const keepForActiveNfo = markerId && activeSiteIds.has(markerId);
+
+                if (
+                    currentMapFilter === 'all' ||
+                    currentMapFilter === 'sites' ||
+                    keepForBusy ||
+                    keepForActiveNfo
+                ) {
                     marker.addTo(map);
                 } else {
                     map.removeLayer(marker);
@@ -2018,6 +2295,8 @@
             if (!site || !hasValidLocation(site.location)) return [];
 
             const candidates = nfoData.filter(nfo => {
+                if (!nfoPassesAreaFilter(nfo)) return false;
+                if (!passesLoginFilter(nfo)) return false;
                 if (!nfo.onShift || !hasValidLocation(nfo.location)) return false;
                 if (filter === 'busy only') return nfo.status === 'busy';
                 if (filter === 'free only') return nfo.status === 'free';
@@ -2046,7 +2325,7 @@
                         [site.location.lat, site.location.lng],
                         [entry.nfo.location.lat, entry.nfo.location.lng]
                     ],
-                    { color: '#999', weight: 2, opacity: 0.7 }
+                    { color: '#facc15', weight: 4, opacity: 0.8 }
                 );
                 line.addTo(map);
                 dispatchLines.push(line);
@@ -2168,6 +2447,8 @@
             if (watchId) {
                 navigator.geolocation.clearWatch(watchId);
             }
+
+            stopNfoHeartbeat();  // NEW: stop periodic NFO heartbeat
 
             if (currentUser?.type === 'nfo') {
                 const nfo = nfoData.find(n => n.id === currentUser.username);

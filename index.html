@@ -2031,6 +2031,11 @@
                 line.addTo(map);
                 dispatchLines.push(line);
             });
+
+            return candidates
+                .map(nfo => ({ nfo, distance: calculateDistance(nfo.location, site.location) }))
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, limit);
         }
 
         function runNfoSearch() {

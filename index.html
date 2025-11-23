@@ -585,6 +585,9 @@
 
         const ORS_BACKEND_BASE_URL = "https://meerabeer1990-nfo-ors-backend.hf.space";
         const NFO_REFRESH_INTERVAL_MS = 30000;
+        // Activity window for considering an NFO online
+        const ACTIVE_WINDOW_MINUTES = 15;
+        const ACTIVE_WINDOW_MS = ACTIVE_WINDOW_MINUTES * 60 * 1000;
         const HEARTBEAT_INTERVAL_MS = 45000;      // 45 seconds heartbeat from NFO devices
         const AUTO_LOGOUT_MS = 10 * 60 * 1000;    // 10 minutes offline -> auto logout / clear shift
         const AREA_COLORS = {
@@ -795,7 +798,7 @@
                 }
 
                 // Heartbeat ping: keep last_ping fresh even if location does not move
-                markNfoPing(liveNfo);
+                markNfoPing(liveNfo, 'heartbeat');
                 await saveNfoStatusToSupabase(liveNfo);
             }, HEARTBEAT_INTERVAL_MS);
         }
@@ -1039,6 +1042,79 @@
             }
         }
 
+        async function loadSingleNfoStatusFromSupabase(nfo) {
+            if (!nfo) return;
+
+            try {
+                const { data, error } = await supabase
+                    .from('nfo_status')
+                    .select('*')
+                    .eq('id', nfo.id)
+                    .maybeSingle();
+
+                if (error) {
+                    console.error('Failed to load single NFO status from Supabase', error);
+                    return;
+                }
+
+                if (!data) {
+                    // No previous status stored for this NFO
+                    return;
+                }
+
+                const row = data;
+
+                // Basic shift / status / activity fields
+                nfo.onShift = row.on_shift !== undefined && row.on_shift !== null
+                    ? !!row.on_shift
+                    : (nfo.onShift ?? false);
+
+                nfo.status = row.status ?? nfo.status ?? 'free';
+                nfo.activity = row.activity ?? nfo.activity ?? null;
+                nfo.siteId = row.site_id ?? nfo.siteId ?? null;
+                nfo.workOrderId = row.work_order_id ?? nfo.workOrderId ?? null;
+
+                // logged_in from DB (current session will set it to true again after this)
+                if (row.logged_in !== undefined && row.logged_in !== null) {
+                    nfo.loggedIn = !!row.logged_in;
+                }
+
+                // Restore last active timestamps (prefer last_active_at over legacy last_ping)
+                const lastActiveStr =
+                    row.last_active_at ??
+                    row.last_ping ??
+                    nfo.lastActiveAt ??
+                    nfo.lastPing ??
+                    null;
+
+                let lastActiveMs = null;
+                if (lastActiveStr) {
+                    const parsed = Date.parse(lastActiveStr);
+                    if (Number.isFinite(parsed)) {
+                        lastActiveMs = parsed;
+                    }
+                }
+
+                nfo.lastActiveAt = lastActiveStr;
+                nfo.lastActiveAtMs = lastActiveMs;
+                nfo.lastActiveSource = row.last_active_source ?? nfo.lastActiveSource ?? null;
+
+                // Keep legacy fields in sync
+                nfo.lastPing = lastActiveStr;
+                nfo.lastPingMs = lastActiveMs;
+
+                // Compute online flag using the same 15-min window
+                const now = Date.now();
+                nfo.isOnline = !!(
+                    nfo.loggedIn &&
+                    nfo.lastActiveAtMs &&
+                    (now - nfo.lastActiveAtMs <= ACTIVE_WINDOW_MS)
+                );
+            } catch (err) {
+                console.error('Error loading single NFO status from Supabase', err);
+            }
+        }
+
         async function loadAllNfosFromSupabase() {
             try {
                 const previousById = new Map(nfoData.map(nfo => [nfo.id, nfo]));
@@ -1140,7 +1216,7 @@
                     merged.isOnline = isOnlineNow;
 
                     // Auto-logout / clear shift if NFO has been offline for a long time
-                    if (!isOnlineNow && merged.loggedIn && merged.lastPingMs && (now - merged.lastPingMs >= AUTO_LOGOUT_MS)) {
+                    if (!isOnlineNow && merged.loggedIn && merged.lastActiveAtMs && (now - merged.lastActiveAtMs >= AUTO_LOGOUT_MS)) {
                         merged.loggedIn = false;
                         merged.onShift = false;
                         merged.status = 'free';
@@ -1320,11 +1396,20 @@
 
                 if (parsed.type === 'nfo') {
                     const nfo = nfoData.find(n => n.id === parsed.username);
-                    if (nfo && !nfo.loggedIn) {
-                        nfo.loggedIn = true;
-                        markNfoPing(nfo, 'resume');
-                        await saveNfoStatusToSupabase(nfo);
+                    if (!nfo) {
+                        return;
                     }
+
+                    // 1) Always try to restore last saved status for this NFO
+                    await loadSingleNfoStatusFromSupabase(nfo);
+
+                    // 2) Ensure this browser session is marked as logged in and active
+                    if (!nfo.loggedIn) {
+                        nfo.loggedIn = true;
+                    }
+                    markNfoPing(nfo, 'resume');
+                    await saveNfoStatusToSupabase(nfo);
+
                     document.getElementById('nfoDashboard').classList.remove('hidden');
                     document.getElementById('nfoUserName').textContent = parsed.username;
                     initNFODashboard();
@@ -1375,6 +1460,10 @@
             if (userType === 'nfo') {
                 const nfo = nfoData.find(n => n.id === username);
                 if (nfo) {
+                    // 1) Pull last saved state from Supabase (siteId, workOrderId, activity, onShift, etc.)
+                    await loadSingleNfoStatusFromSupabase(nfo);
+
+                    // 2) Mark this session as logged in and active
                     nfo.loggedIn = true;
                     markNfoPing(nfo, 'login');
                     await saveNfoStatusToSupabase(nfo);
@@ -1980,7 +2069,7 @@
         }
 
         function updateStats() {
-            // Only count NFOs that are actually online
+            // Only consider NFOs that are currently online (active within last 15 minutes)
             const onlineNfos = nfoData.filter(n => n.isOnline);
 
             const onShift = onlineNfos.filter(n => n.onShift).length;

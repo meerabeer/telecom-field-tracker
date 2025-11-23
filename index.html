@@ -546,10 +546,18 @@
                             <button class="filter-btn" onclick="filterMap('sites', this)">Sites Only</button>
                             <button class="filter-btn" onclick="filterMap('busy', this)">Busy NFOs</button>
                             <button class="filter-btn" onclick="filterMap('free', this)">Free NFOs</button>
-                            <select id="loginFilter" style="margin-left: 8px; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 12px;">
+                            <select id="loginFilter" style="margin-left: 8px; padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 12px;">
                                 <option value="all" selected>All NFOs</option>
                                 <option value="logged-in">Logged in only</option>
                                 <option value="logged-out">Logged out only</option>
+                            </select>
+                            <select id="areaFilter" style="margin-left: 8px; padding: 6px 10px; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 12px;">
+                                <option value="all" selected>All Areas</option>
+                                <option value="Baha">Baha</option>
+                                <option value="Jeddah">Jeddah</option>
+                                <option value="Makkah">Makkah</option>
+                                <option value="Taif">Taif</option>
+                                <option value="Qunfudah">Qunfudah</option>
                             </select>
                         </div>
                     <div id="areaLegend" style="display: flex; flex-wrap: wrap; gap: 10px; margin: 8px 0; font-size: 12px; color: var(--color-text-secondary);"></div>
@@ -609,6 +617,7 @@
         let nfoHeartbeatIntervalId = null;
         let currentMapFilter = 'all';
         let currentLoginFilter = 'all';
+        let currentAreaFilter = 'all'; // 'all', 'Baha', 'Jeddah', 'Makkah', 'Taif', 'Qunfudah', etc.
 
         let nfoUsers = [];
         let mgmtUsers = [];
@@ -668,8 +677,8 @@
         }
 
         const DEFAULT_NFO_USERS = [
-            { username: 'nfo1', password: 'password', fullName: 'nfo1' },
-            { username: 'nfo2', password: 'password', fullName: 'nfo2' }
+            { username: 'nfo1', password: 'password', fullName: 'nfo1', homeLocation: 'Generic' },
+            { username: 'nfo2', password: 'password', fullName: 'nfo2', homeLocation: 'Generic' }
         ];
 
         const DEFAULT_MGMT_USERS = [
@@ -946,7 +955,8 @@
                 .map(row => ({
                     username: row[0],
                     password: row[1],
-                    fullName: row[2] || row[0]
+                    fullName: row[2] || row[0],
+                    homeLocation: row[3] || null   // Location column from CSV
                 }));
 
             const result = users.length ? users : fallback;
@@ -1064,6 +1074,11 @@
 
                 const row = data;
 
+                // Home area / location (fixed per NFO)
+                if (row.home_location !== undefined && row.home_location !== null) {
+                    nfo.homeLocation = row.home_location;
+                }
+
                 // Basic shift / status / activity fields
                 nfo.onShift = row.on_shift !== undefined && row.on_shift !== null
                     ? !!row.on_shift
@@ -1136,6 +1151,7 @@
                     const merged = existing ? { ...existing } : {
                         id: row.id,
                         name: row.name || row.id,
+                        homeLocation: row.home_location || null,
                         onShift: false,
                         status: 'free',
                         activity: '',
@@ -1159,6 +1175,9 @@
                     const previousLocation = merged.location ? { ...merged.location } : null;
 
                     merged.name = row.name ?? merged.name ?? row.id;
+                    if (row.home_location !== undefined && row.home_location !== null) {
+                        merged.homeLocation = row.home_location;
+                    }
                     merged.onShift = row.on_shift !== undefined && row.on_shift !== null
                         ? !!row.on_shift
                         : (merged.onShift ?? false);
@@ -1323,6 +1342,7 @@
                 nfoData.push({
                     id: user.username,
                     name: user.fullName || user.username || `Engineer ${index + 1}`,
+                    homeLocation: user.homeLocation || null,
                     onShift: false,
                     status: 'free',        // default not busy
                     activity: null,
@@ -1689,6 +1709,12 @@
                     setLoginFilter(event.target.value || 'all');
                 });
             }
+            const areaFilterEl = document.getElementById('areaFilter');
+            if (areaFilterEl) {
+                areaFilterEl.addEventListener('change', (event) => {
+                    setAreaFilter(event.target.value || 'all');
+                });
+            }
             initLoginTabs();
             renderNfoSearchResults();
             updateNFOList();
@@ -2033,6 +2059,7 @@
             const container = document.getElementById('nfoListContainer');
             const filterStatus = currentMapFilter;
             const list = nfoData.filter(n => {
+                if (!nfoPassesAreaFilter(n)) return false;
                 if (!passesLoginFilter(n)) return false;
                 if (filterStatus === 'busy' && n.status !== 'busy') return false;
                 if (filterStatus === 'free' && n.status !== 'free') return false;
@@ -2054,6 +2081,7 @@
             }
 
             const matches = nfoData.filter(nfo => {
+                if (!nfoPassesAreaFilter(nfo)) return false;
                 return (nfo.name && nfo.name.toLowerCase().includes(query)) ||
                     (nfo.id && nfo.id.toLowerCase().includes(query));
             }).filter(passesLoginFilter);
@@ -2069,14 +2097,17 @@
         }
 
         function updateStats() {
+            // First apply Area filter
+            const areaFiltered = nfoData.filter(nfoPassesAreaFilter);
+
             // Only consider NFOs that are currently online (active within last 15 minutes)
-            const onlineNfos = nfoData.filter(n => n.isOnline);
+            const onlineNfos = areaFiltered.filter(n => n.isOnline);
 
             const onShift = onlineNfos.filter(n => n.onShift).length;
             const busyOnShift = onlineNfos.filter(n => n.onShift && n.status === 'busy').length;
             const freeOnShift = onlineNfos.filter(n => n.onShift && n.status === 'free').length;
 
-            const total = nfoData.length;
+            const total = areaFiltered.length;
             const online = onlineNfos.length;
             const offline = total - online;
 
@@ -2108,7 +2139,15 @@
             return true;
         }
 
+        function nfoPassesAreaFilter(nfo) {
+            if (!nfo) return false;
+            if (!currentAreaFilter || currentAreaFilter === 'all') return true;
+            const home = (nfo.homeLocation || '').toLowerCase();
+            return home === currentAreaFilter.toLowerCase();
+        }
+
         function nfoPassesMapFilters(nfo) {
+            if (!nfoPassesAreaFilter(nfo)) return false;
             if (!passesLoginFilter(nfo)) return false;
 
             switch(currentMapFilter) {
@@ -2138,6 +2177,19 @@
             renderNfoSearchResults();
         }
 
+        function setAreaFilter(area) {
+            currentAreaFilter = area || 'all';
+            const areaFilterEl = document.getElementById('areaFilter');
+            if (areaFilterEl) {
+                areaFilterEl.value = currentAreaFilter;
+            }
+
+            applyMapFilter();
+            updateNFOList();
+            renderNfoSearchResults();
+            updateStats();
+        }
+
         function filterMap(type, button) {
             currentMapFilter = type;
 
@@ -2156,7 +2208,7 @@
             nfoMarkers.forEach(marker => {
                 const nfo = marker.nfoData;
                 let show = nfoPassesMapFilters(nfo);
-                if (currentMapFilter === 'nfo') show = passesLoginFilter(nfo);
+                if (currentMapFilter === 'nfo') show = nfoPassesAreaFilter(nfo) && passesLoginFilter(nfo);
 
                 if (show) {
                     marker.addTo(map);
@@ -2167,7 +2219,19 @@
 
             const busySiteIds = new Set(
                 nfoData
-                    .filter(nfo => nfo.status === 'busy' && nfo.siteId && nfo.onShift && passesLoginFilter(nfo))
+                    .filter(nfo =>
+                        nfoPassesAreaFilter(nfo) &&
+                        nfo.status === 'busy' &&
+                        nfo.siteId &&
+                        nfo.onShift &&
+                        passesLoginFilter(nfo)
+                    )
+                    .map(nfo => nfo.siteId.toLowerCase())
+            );
+
+            const activeSiteIds = new Set(
+                nfoData
+                    .filter(nfo => nfo.siteId && nfoPassesMapFilters(nfo))
                     .map(nfo => nfo.siteId.toLowerCase())
             );
 
@@ -2237,6 +2301,8 @@
             if (!site || !hasValidLocation(site.location)) return [];
 
             const candidates = nfoData.filter(nfo => {
+                if (!nfoPassesAreaFilter(nfo)) return false;
+                if (!passesLoginFilter(nfo)) return false;
                 if (!nfo.onShift || !hasValidLocation(nfo.location)) return false;
                 if (filter === 'busy only') return nfo.status === 'busy';
                 if (filter === 'free only') return nfo.status === 'free';

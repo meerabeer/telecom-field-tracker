@@ -1102,6 +1102,7 @@
         function initializeNFOData() {
             nfoData.length = 0; // Clear existing
             nfoUsers.forEach((user, index) => {
+                const saved = savedState?.find(entry => entry.id === user.username);
                 nfoData.push({
                     id: user.username,
                     name: user.fullName || user.username || `Engineer ${index + 1}`,
@@ -1117,10 +1118,15 @@
                     lastPingMs: null,
                     isOnline: false
                 });
+                const current = nfoData[nfoData.length - 1];
+                const parsedPing = current.lastPingMs ?? (current.lastPing ? Date.parse(current.lastPing) : null);
+                current.lastPingMs = Number.isFinite(parsedPing) ? parsedPing : null;
+                current.isOnline = !!(current.loggedIn && current.lastPingMs && (Date.now() - current.lastPingMs <= 60000));
             });
 
             // Update total NFOs count
             document.getElementById('totalNFOs').textContent = nfoData.length;
+            persistNFOState();
         }
 
         async function loadDataFromFiles() {
@@ -1595,6 +1601,8 @@
                 line.addTo(map);
                 nfoConnectionLines.push(line);
             });
+
+            applyMapFilter();
         }
 
         function buildNfoCard(nfo) {
@@ -1887,7 +1895,7 @@
         function nfoPassesMapFilters(nfo) {
             if (!passesLoginFilter(nfo)) return false;
 
-            switch (currentMapFilter) {
+            switch(currentMapFilter) {
                 case 'busy':
                     return nfo.status === 'busy' && nfo.onShift;
                 case 'free':
@@ -1895,8 +1903,7 @@
                 case 'sites':
                     return false;
                 default:
-                    return true;
-            }
+            return true;
         }
 
         function setLoginFilter(filter) {
@@ -1912,6 +1919,7 @@
             applyMapFilter();
             updateNFOList();
             renderNfoSearchResults();
+        }
         }
 
         function filterMap(type, button) {
@@ -2033,6 +2041,11 @@
                 line.addTo(map);
                 dispatchLines.push(line);
             });
+
+            return candidates
+                .map(nfo => ({ nfo, distance: calculateDistance(nfo.location, site.location) }))
+                .sort((a, b) => a.distance - b.distance)
+                .slice(0, limit);
         }
 
         function runNfoSearch() {
